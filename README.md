@@ -3,11 +3,20 @@ UnTerminal
 
 Unidad en Lazarus, para el control de procesos tipo consola, con detección de "prompt".
 
-Esta unidad permite procesar la entrada y salida de un cliente de telnet, que trabaja como una consola.
-Permite además detectar el prompt y el estado de "ocupado" y "listo".
+Esta unidad permite procesar la entrada y salida de procesos que manejen entrada y salida estándar de texto. Permite además detectar el prompt y el estado de "ocupado" y "listo".
 
-Para conectarse mediante un proceso, se debe crear una instancia de TConexProc, y seguir la
-secuencia de conexión:
+Los procesos a controlar con esta unidad deben cumplir las siguientes condiciones:
+
+1. Que se puedan lanzar como procesos de tipo consola.
+2. Que su entrada y salida estándar sea de tipo texto.
+3. Que tengan prompt.
+4. Que acepten comandos.
+
+Los procesos que se pueden controlar con esta unidad son diversos, como clientes de telnet, ftp, o el mismo shell del sistema operativo, como se muestar en el ejemplo incluido.
+
+En esta versión no permite leer el flujo de salida de errores.
+
+Para conectarse mediante un proceso, se debe crear una instancia de TConexProc, y seguir la secuencia de conexión:
 
 ```
   p := TConexProc.Create(StatusBar1.Panels[1]);  //Crea conexión
@@ -30,14 +39,20 @@ usará). En este caso se debe manejar el evento OnDrawPanel() de la Barra de est
 
  La conexión se maneja por estados. Una secuencia típica de estados al iniciar una
  conexión exitosa es:
- ECO_DETENIDO -> ECO_CONECTANDO -> ECO_OCUPADO -> ECO_LIBRE
+ 
+ ECO_DETENIDO -> ECO_CONECTANDO -> ECO_LIBRE
 
- Una conexión con error:
- ECO_DETENIDO -> ECO_CONECTANDO -> ECO_LIBRE -> ECO_ERROR_CON
+El estado de ECO_LIBRE indica que el proceso está listo para recibir comandos y, se detecta cuando se recibe el prompt. Por lo tanto para que se pueda considerar a un proceso como libre, se debe cumplir que tenga un prompt y que el terminal este configurado para detectarlo.
 
- Una consulta cualquiera:
- ECO_LIBRE -> ECO_OCUPADO -> ECO_LIBRE
+La secuencia de una conexión con error sería:
+ 
+ ECO_DETENIDO -> ECO_CONECTANDO -> ...
 
+Es decir, que no se detecta el prompt, sino que probablemente, el proceso se detiene con un mensaje de error. La detección de los mensajes de error, no se hace en esta unidad, porque pueden ser muy diversos. Se recomienda implementarlos en otra unidad o derivando una clase adicional. 
+ 
+Una vez el proceso se encuentre disponible. Una consulta cualquiera:
+
+ECO_LIBRE -> ECO_OCUPADO -> ECO_LIBRE
 
 Está unidad está pensada para ser usada en conexiones lentas, y con volúmenes
 considerables de datos, por ello se maneja la llegada de datos completamente por eventos.
@@ -46,8 +61,10 @@ Para el manejo de la pantalla usa un terminal VT100 sencillo, de la unidad TermV
 embargo, esta unidad ha sido diseñada para poder recibir el texto del VT100, en un
 TStringList, y poder registrar permanentemente el contenido.
 
- Para configurar un editor para mostrar la salida del proceso, se debe usar los eventos:
- OnInitLines(), OnRefreshLine(), OnRefreshLines() y OnAddLine():
+El proceso a lanzar, se inicia con el método Open() y se termina con el método Close().
+
+Para configurar un editor para mostrar la salida del proceso, se debe usar los eventos:
+OnInitLines(), OnRefreshLine(), OnRefreshLines() y OnAddLine():
 
 ```
   proc.OnInitLines:=@procInitLines;
@@ -78,9 +95,11 @@ end;
 
 El evento OnInitLines(), es llamado solo una vez al inicio para dimensionar el StringList, de modo que pueda contener a todas las líneas del terminal VT100.
 
-En principio, solo debería mandarse un comando por Enviar() porque, enviar más
-de un comando podría hacer que el proceso pase repetidamente
-por la las fases ECO_OCUPADO -> ECO_LIBRE -> ECO_OCUPADO ... -> ECO_LIBRE.
+Los comandos, se envían al proceso con el método Send(). En principio, solo debería mandarse un solo comando por Send() porque, enviar más de un comando podría hacer que el proceso pase repetidamente por  las fases:
+
+ECO_OCUPADO -> ECO_LIBRE -> ECO_OCUPADO ... -> ECO_LIBRE.
+
+Haciendo que se pase de un estado de libre a ocupado de forma automática, y pudiendo complicar a alguna rutina que esté programada para enviar más comandos cuando detecte que el proceso se encuentre libre.
 
 Los datos de salida que van llegando del proceso, no se guardan completamente en la
 clase. Solo se mantienen las líneas de trabajo del terminal VT100 en el objeto "term".

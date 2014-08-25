@@ -50,17 +50,17 @@ implementation
 
 procedure TForm1.Button1Click(Sender: TObject);
 begin
-  proc.InicConexion('cmd','');
+  proc.Open('cmd','');
 end;
 
 procedure TForm1.Button2Click(Sender: TObject);
 begin
-  proc.Cerrar;
+  proc.Close;
 end;
 
 procedure TForm1.Button3Click(Sender: TObject);
 begin
-  proc.EnviarCom(txtCommand.Text);
+  proc.SendLn(txtCommand.Text);
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);

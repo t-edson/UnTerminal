@@ -1,8 +1,17 @@
 {
-UnTerminal 0.1
+UnTerminal 0.2
 ===============
 Por Tito Hinostroza
 
+* Se incluye la propiedad "detParcial", para permitir detectar el prompt cuando
+se encuentra parcialmente en una línea.
+* Se cambia el nombre de algunas propiedades y métodos al ingles.
+* Se elimina TPromptDetec. No se usaba.
+* Se cambia el nombre de lso métodos Enviar() y EnviarCom() a Send() y SendLn()
+respectivamente.
+
+Descripción
+===========
 Derivada de la unidad ConexOraSQlP 0.5. Esta unidad permite procesar la entrada y
 salida de un cliente de telnet, que trabaja como una consola.
 Permite además detectar el prompt y el estado de "ocupado" y "listo".
@@ -103,12 +112,6 @@ TEstadoCon = (
    ECO_LIBRE,      //Iniciado y conectado, libre para aceptar consultas.
    ECO_DETENIDO    //Proceso no iniciado. Puede que haya datos pendientes en el "buffer"
 );
-//Formas de detección de prompt
-TPromptDetec = (
-   PD_NONE,     //sin detección
-   PD_STR_END,  //cadena de inicio y fin
-   PD_ESC_SEQ   //por secuencia de escape
-);
 
 {Evento. Pasa la cantidad de bytes que llegan y la columna y fila final de la matriz Lin[] }
 TEvProcState = procedure(nDat: integer; pFinal: TPoint) of object;
@@ -138,6 +141,7 @@ public
   state    : TEstadoCon;  //Estado de la conexión
 
   detecPrompt: boolean;    //activa la detección de prompt.
+  detParcial :boolean;     //permite que la detección sea parcial
   prIni, prFin: string;    //cadena inicial, internedia y final del prompt
   txtEstado : string;      //cadena con texto sobre el estado de la conexión
   HayPrompt : boolean;     //bandera, indica si se detectó el prompt en la última línea
@@ -165,12 +169,12 @@ public
   OnRefreshLines: TEvRefreshLines; //indica que se deben refrescar ese grupo de líneas
   OnAddLine     : TEvOnAddLine;    //inidca que se debe agregar una línea a la salida
 
-  procedure InicConexion(progPath0, progParam0: string); //Inicia conexión
+  procedure Open(progPath0, progParam0: string); //Inicia conexión
+  function Close: boolean;    //Termina la conexión
   procedure LimpiarTerminal;
   property AnchoTerminal: integer read GetAnchoTerminal write SetAnchoTerminal;
-  procedure Enviar(const txt: string);
-  procedure EnviarCom(txt: string; saltoUNIX: boolean=false);  //Envía datos por el "stdin"
-  function Cerrar: boolean;    //Termina la conexión
+  procedure Send(const txt: string);
+  procedure SendLn(txt: string; saltoUNIX: boolean=false);  //Envía datos por el "stdin"
   //control de barra de estado
   procedure RefPanelEstado;
   procedure DibPanelEstado(c: TCanvas; const Rect: TRect);
@@ -386,7 +390,7 @@ begin
   term.width := AValue;
 end;
 
-procedure TConexProc.InicConexion(progPath0, progParam0: string);
+procedure TConexProc.Open(progPath0, progParam0: string);
 //Inicia el proceso y verifica si hubo error al lanzar el proceso.
 begin
   term.Clear;
@@ -548,7 +552,7 @@ begin
            if HayPrompt then begin
               //se consiguió conectar por primera vez
 //              state := ECO_LIBRE;  //para que pase a ECO_OCUPADO
-//              EnviarCom(COMAN_INIC); //envía comandos iniciales (lanza evento Ocupado)
+//              SendLn(COMAN_INIC); //envía comandos iniciales (lanza evento Ocupado)
               CambiarEstado(ECO_LIBRE);
            end;
         end;
@@ -567,7 +571,7 @@ begin
     cAnim := 0;
   end;
 end;
-procedure TConexProc.Enviar(const txt: string);
+procedure TConexProc.Send(const txt: string);
 {Envía una cadena como como flujo de entrada al proceso.
 Es importante agregar el caracter #13#10 al final. De otra forma no se leerá el "stdin"}
 begin
@@ -577,13 +581,13 @@ begin
   //para que se genere un cambio de state aunque el comando sea muy corto
   if state = ECO_LIBRE then CambiarEstado(ECO_OCUPADO);
 end;
-procedure TConexProc.EnviarCom(txt: string; saltoUNIX: boolean = false);
+procedure TConexProc.SendLn(txt: string; saltoUNIX: boolean = false);
 {Envía un comando al proceso. Incluye el salto de línea al final de la línea.}
 begin
   txt+=#13#10;
   if saltoUNIX then
     txt := StringReplace(txt,#13#10,#10,[rfReplaceAll]);
-  Enviar(txt);
+  Send(txt);
 end;
 
 procedure TConexProc.termRefreshScreen(linesAdded: integer);
@@ -617,7 +621,7 @@ begin
 //  CambiarEstado(ECO_LIBRE);  //cambia el state
 end;
 
-function TConexProc.Cerrar: boolean;
+function TConexProc.Close: boolean;
 //Cierra la conexión actual. Si hay error devuelve False.
 var c: integer;
 begin
