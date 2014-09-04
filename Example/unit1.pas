@@ -16,6 +16,7 @@ type
     Button1: TButton;
     Button2: TButton;
     Button3: TButton;
+    Button4: TButton;
     label2: TLabel;
     StatusBar1: TStatusBar;
     txtProcess: TEdit;
@@ -25,9 +26,11 @@ type
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure Button3Click(Sender: TObject);
+    procedure Button4Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure procAddLine(HeightScr: integer);
+    procedure procChangeState(State: string; pFinal: TPoint);
     procedure procInitLines(const grilla: TtsGrid; fIni, fFin: integer);
     procedure procRefreshLine(const grilla: TtsGrid; fIni, HeightScr: integer);
     procedure procRefreshLines(const grilla: TtsGrid; fIni, fFin,
@@ -63,13 +66,20 @@ begin
   proc.SendLn(txtCommand.Text);
 end;
 
+procedure TForm1.Button4Click(Sender: TObject);
+begin
+  proc.AutoConfigPrompt;
+end;
+
 procedure TForm1.FormCreate(Sender: TObject);
 begin
   proc:= TConexProc.Create(nil);
+  proc.sendCRLF:=true;
   proc.OnInitLines:=@procInitLines;
   proc.OnRefreshLine:=@procRefreshLine;
   proc.OnRefreshLines:=@procRefreshLines;
   proc.OnAddLine:=@procAddLine;
+  proc.OnChangeState:=@procChangeState;
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
@@ -80,6 +90,11 @@ end;
 procedure TForm1.procAddLine(HeightScr: integer);
 begin
   Memo1.Lines.Add('');
+end;
+
+procedure TForm1.procChangeState(State: string; pFinal: TPoint);
+begin
+  StatusBar1.Panels[0].Text:=State;
 end;
 
 procedure TForm1.procInitLines(const grilla: TtsGrid; fIni, fFin: integer);

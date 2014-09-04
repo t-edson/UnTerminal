@@ -1,15 +1,22 @@
 {
-UnTerminal 0.2
+UnTerminal 0.3
 ===============
-Por Tito Hinostroza
+Por Tito Hinostroza 25/08/2014
 
-* Se incluye la propiedad "detParcial", para permitir detectar el prompt cuando
-se encuentra parcialmente en una línea.
-* Se cambia el nombre de algunas propiedades y métodos al ingles.
-* Se elimina TPromptDetec. No se usaba.
-* Se cambia el nombre de lso métodos Enviar() y EnviarCom() a Send() y SendLn()
-respectivamente.
-
+* Se eliminan los eventos OnHuboError(), OnErrorConex(), y las variables HayError, pErr y
+HuboError, porque no se detecta el estado de error en esta unidad.
+* Se agrega la bandera sendCRLF, para enviar CR+LF, en lugar de CR, como es usual en
+conexiones telnet.
+* Se incluye la función AutoConfigPrompt, para configurar automáticamente el prompt
+actual.
+* Se cambia el nombre del método LeeUltLinea(), por LastLine().
+* Se cambia nombre de constante TAM_BLOQUE a UBLOCK_SIZE.
+* Se cambia de nombre a LimpiarTerminal() por ClearTerminal().
+* Se agregan algunas protecciones adicionales.
+* Se cambia declaración de OnChangeState(), para dar texto sobre el estado.
+* Se cambia de nombre a los estados.
+}
+{
 Descripción
 ===========
 Derivada de la unidad ConexOraSQlP 0.5. Esta unidad permite procesar la entrada y
@@ -18,6 +25,7 @@ Permite además detectar el prompt y el estado de "ocupado" y "listo".
 
 Para conectarse mediante un proceso, se debe crear una instancia de TConexProc, y seguir la
 secuencia de conexión:
+
   p := TConexProc.Create(StatusBar1.Panels[1]);  //Crea conexión
   ...
   p.Free.
@@ -32,16 +40,6 @@ usará). En este caso se debe manejar el evento OnDrawPanel() de la Barra de est
  begin
   if panel.Index = 1 then q.DibPanelEstado(StatusBar.Canvas, Rect);
  end;
-
- La conexión se maneja por estados. Una secuencia típica de estados al iniciar una
- conexión exitosa es:
- ECO_DETENIDO -> ECO_CONECTANDO -> ECO_OCUPADO -> ECO_LIBRE
-
- Una conexión con error:
- ECO_DETENIDO -> ECO_CONECTANDO -> ECO_LIBRE -> ECO_ERROR_CON
-
- Una consulta cualquiera:
- ECO_LIBRE -> ECO_OCUPADO -> ECO_LIBRE
 
 
 Está unidad está pensada para ser usada en conexiones lentas, y con volúmenes
@@ -82,10 +80,6 @@ end;
 El evento OnInitLines(), es llamado solo una vez al inicio para dimensionar el StringList,
 de modo que pueda contener a todas las líneas del terminal VT100.
 
-En principio, solo debería mandarse un comando por Enviar() porque, enviar más
-de un comando podría hacer que el proceso pase repetidamente
-por la las fases ECO_OCUPADO -> ECO_LIBRE -> ECO_OCUPADO ... -> ECO_LIBRE.
-
 Los datos de salida que van llegando del proceso, no se guardan completamente en la
 clase. Solo se mantienen las líneas de trabajo del terminal VT100 en el objeto "term".
 Así se ahorra memoria, porque por lo general, el texto de salida está destinado a ser
@@ -99,18 +93,18 @@ unit UnTerminal;
 {$mode objfpc}{$H+}
 interface
 uses  Classes, SysUtils, Process, ExtCtrls, Dialogs, Graphics, ComCtrls,
-     LCLProc, types, TermVT;
+     LCLProc, types, Strutils, TermVT;
 const
-  TAM_BLOQUE = 2048;    //Tamaño de bloque de lectura de salida de proceso
+  UBLOCK_SIZE = 2048;    //Tamaño de bloque de lectura de salida de proceso
 
 type
 
 TEstadoCon = (
-   ECO_CONECTANDO, //Iniciado y Conectando a Oracle
+   ECO_CONNECTING, //Iniciado y Conectando
    ECO_ERROR_CON,  //Iniciado y Con error de conexión
-   ECO_OCUPADO,    //Iniciado y conectado, pero con consulta pendiente.
-   ECO_LIBRE,      //Iniciado y conectado, libre para aceptar consultas.
-   ECO_DETENIDO    //Proceso no iniciado. Puede que haya datos pendientes en el "buffer"
+   ECO_BUSY,       //Iniciado y conectado, pero ejecutando algún proceso
+   ECO_READY,      //Iniciado y conectado, libre para aceptar comandos.
+   ECO_STOPPED     //Proceso no iniciado. Puede que haya datos pendientes en el "buffer"
 );
 
 {Evento. Pasa la cantidad de bytes que llegan y la columna y fila final de la matriz Lin[] }
@@ -124,44 +118,42 @@ TEvRefreshLine = procedure(const grilla: TtsGrid; fIni, HeightScr: integer) of o
 TEvRefreshLines= procedure(const grilla: TtsGrid; fIni, fFin, HeightScr: integer) of object;
 TEvOnAddLine   = procedure(HeightScr: integer) of object;
 
-//Clase que define un proceso
 { TConexProc }
-
+//Clase que define un proceso
 TConexProc = class
-private
+protected
+  panel     : TStatusPanel; //referencia a panel para nostrar estado
   lastState : TEstadoCon;  //Estado anterior
+  txtState  : string;      //Cadena que describe el estado actual de la conexión
   FAnchoTerminal: integer;
   function ContienePrompt(const linAct, prIni, prFin: string): integer;
+  function ContienePromptF(const linAct, prIni, prFin: string): integer;
   function EsPrompt(const cad: string): boolean;
   function GetAnchoTerminal: integer;
   procedure SetAnchoTerminal(AValue: integer);
 public
+  //datos del proceso
   progPath  : string;      //ruta del porgrama a lanzar
   progParam : string;      //parámetros del programa
-  state    : TEstadoCon;  //Estado de la conexión
-
+  State     : TEstadoCon;  //Estado de la conexión
+  sendCRLF  : boolean;     //envía CRLF en lugar de CR
+  //manejo del prompt
   detecPrompt: boolean;    //activa la detección de prompt.
   detParcial :boolean;     //permite que la detección sea parcial
-  prIni, prFin: string;    //cadena inicial, internedia y final del prompt
-  txtEstado : string;      //cadena con texto sobre el estado de la conexión
+  prIni,prFin: string;     //cadena inicial, y final del prompt
   HayPrompt : boolean;     //bandera, indica si se detectó el prompt en la última línea
-  HuboError : boolean;     //Indica que hubo error en la última consulta
-  cadError  : string;      //guarda el mensaje de error
-  pErr      : TPoint;      //posición del error;
-  panel     : TStatusPanel; //referencia a panel para nostrar estado
-  term      : TTermVT100;   //Terminal
+
+  msjError  : string;      //guarda el mensaje de error
+  term      : TTermVT100;  //Terminal
 
   //eventos de cambio de estado
-  OnConectando : TEvProcState;    //indica que se inicia el proceso y trata de conectar
-  OnErrorConex : TEvProcState;    //indica que se detectó un mensaje de error al conectar
-  OnOcupado    : TEvProcState;    //indica que está esperando prompt
-  OnDetenido   : TEvProcState;    //indica que se terminó el proceso
+  OnConnecting : TEvProcState;    //indica que se inicia el proceso y trata de conectar
+  OnBusy       : TEvProcState;    //indica que está esperando prompt
+  OnStopped    : TEvProcState;    //indica que se terminó el proceso
   OnLlegoPrompt: TEvLlegoPrompt;  //indica que llegó el prompt
-  OnChangeState: TEvProcState;    //cambia de estado
+  OnChangeState: TEvRecSysComm;    //cambia de estado
   OnRecSysComm : TEvRecSysComm;   {indica que llegó información del sistema remoto (usuario,
                                   directorio actual, etc) Solo para conex. Telnet}
-  //eventos de control
-  OnHuboError  : TEvProcState;    //indica que hubo mensaje de error
   //eventos de llegada de datos
   OnRefreshAll  : TEvRefreshAll;   //Usado para refresvar todo el contenido del terminal
   OnInitLines   : TEvAddLines;     //indica que se debe agregar líneas de texto
@@ -169,37 +161,39 @@ public
   OnRefreshLines: TEvRefreshLines; //indica que se deben refrescar ese grupo de líneas
   OnAddLine     : TEvOnAddLine;    //inidca que se debe agregar una línea a la salida
 
+  procedure Open;   //inicia proceso
   procedure Open(progPath0, progParam0: string); //Inicia conexión
   function Close: boolean;    //Termina la conexión
-  procedure LimpiarTerminal;
+  procedure ClearTerminal;
   property AnchoTerminal: integer read GetAnchoTerminal write SetAnchoTerminal;
   procedure Send(const txt: string);
-  procedure SendLn(txt: string; saltoUNIX: boolean=false);  //Envía datos por el "stdin"
+  procedure SendLn(txt: string);  //Envía datos por el "stdin"
   //control de barra de estado
   procedure RefPanelEstado;
   procedure DibPanelEstado(c: TCanvas; const Rect: TRect);
-  function LeeUltLinea: string;
-  //constructor y destructor
-  constructor Create(PanControl: TStatusPanel);     //Constructor
-  destructor Destroy; override;   //Limpia los buffers
+  function LastLine: string;  //devuelve la última línea
+  procedure AutoConfigPrompt;
+  //respuesta a eventos de term
   procedure termAddLine;
   procedure termRefreshLine(fil: integer);
   procedure termRefreshLines(fIni, fFin: integer);
   procedure termRefreshScreen(linesAdded: integer);
   procedure termRecSysComm(info: string);
+  //constructor y destructor
+  constructor Create(PanControl: TStatusPanel);     //Constructor
+  destructor Destroy; override;   //Limpia los buffers
 private
   p       : TProcess;   //el proceso a manejar
-  bolsa   : array[0..TAM_BLOQUE] of char;  //buffer para almacenar salidas(tiene un caracter más)
+  bolsa   : array[0..UBLOCK_SIZE] of char;  //buffer para almacenar salidas(tiene un caracter más)
   nLeidos : LongInt;
-  lstTmp : TStringList;
-  HayError  : boolean;  //Indica que se detectó un error en la última exploración
+  lstTmp  : TStringList;
 
-  clock    : TTimer;
-  cAnim    : integer;  //contador para animación de ícono de state
-  angA: integer;       //contador para animación de ícono de state
+  clock   : TTimer;     //temporizador para leer salida del proceso
+  cAnim   : integer;    //contador para animación de ícono de estado
+  angA    : integer;    //contador para animación de ícono de estado
   procedure RefresConexion(Sender: TObject);  //Refresca la conexión
   function LeeSalidaProc:boolean;
-  function CambiarEstado(estado0: TEstadoCon): boolean;  //Cambia el state actual
+  function CambiarEstado(estado0: TEstadoCon): boolean;  //Cambia el State actual
 end;
 
 implementation
@@ -207,6 +201,17 @@ implementation
 const
    NUM_LIN_ATRAS = 12;  {número de línea a explorar, hacia atrás, para buscar mensajes de
                         error}
+   STA_NAME_CONNEC  = 'Connecting';
+   STA_NAME_ERR_CON = 'Connection Error';
+   STA_NAME_BUSY    = 'Busy';
+   STA_NAME_READY   = 'Ready';
+   STA_NAME_STOPPED = 'Stopped';
+
+{   STA_NAME_CONNEC  = 'Conectando';
+   STA_NAME_ERR_CON = 'Error en conexión';
+   STA_NAME_BUSY    = 'Ocupado';
+   STA_NAME_READY   = 'Disponible';
+   STA_NAME_STOPPED = 'Detenido';}
 
 function Explode(delimiter:string; str:string):TStringDynArray;
 var
@@ -231,49 +236,47 @@ end;
 function TConexProc.CambiarEstado(estado0: TEstadoCon): boolean;
 {Cambia el estado de la conexión  y actualiza un panel con información sobre el estado}
 begin
-  lastState := state;  //pasa state actual a anterior
-  state := estado0;    //fija state actual
-  if lastState <> state then begin   //indica si hubo cambio
-    //hubo cambio de state
+  lastState := State;  //pasa State actual a anterior
+  State := estado0;    //fija State actual
+  if lastState <> State then begin   //indica si hubo cambio
+    //hubo cambio de State
     Result := true;
-    case state of
-    ECO_CONECTANDO: begin
-        txtEstado := 'Conectando';
-        RefPanelEstado;  //fuerza a redibujar panel con el nuevo state
-        if OnConectando<>nil then OnConectando(0,term.CurXY);
+    case State of
+    ECO_CONNECTING: begin
+        txtState := STA_NAME_CONNEC;
+        RefPanelEstado;  //fuerza a redibujar panel con el nuevo State
+        if OnConnecting<>nil then OnConnecting(0,term.CurXY);
       end;
-    ECO_ERROR_CON: begin
-        txtEstado := 'Error en conexión';
-        RefPanelEstado;  //fuerza a redibujar panel con el nuevo state
+{    ECO_ERROR_CON: begin
+        txtState := STA_NAME_ERR_CON;
+        RefPanelEstado;  //fuerza a redibujar panel con el nuevo State
         if OnErrorConex <> nil then OnErrorConex(nLeidos, pErr);
+      end;}
+    ECO_BUSY: begin
+        txtState := STA_NAME_BUSY;
+        RefPanelEstado;  //fuerza a redibujar panel con el nuevo State
+        if OnBusy <> nil then OnBusy(nLeidos, term.CurXY);
       end;
-    ECO_OCUPADO: begin
-        txtEstado := 'Ocupado';
-        RefPanelEstado;  //fuerza a redibujar panel con el nuevo state
-        if OnOcupado <> nil then OnOcupado(nLeidos, term.CurXY);
-      end;
-    ECO_LIBRE: begin
-        txtEstado := 'Disponible';
-        RefPanelEstado;  //fuerza a redibujar panel con el nuevo state
+    ECO_READY: begin
+        txtState := STA_NAME_READY;
+        RefPanelEstado;  //fuerza a redibujar panel con el nuevo State
         if OnLlegoPrompt <> nil then OnLlegoPrompt('', term.CurXY, term.height);
       end;
-    ECO_DETENIDO: begin
-        txtEstado := 'Detenido';
-        RefPanelEstado;  //fuerza a redibujar panel con el nuevo state
-        if OnDetenido <> nil then OnDetenido(nLeidos, term.CurXY);
+    ECO_STOPPED: begin
+        txtState := STA_NAME_STOPPED;
+        RefPanelEstado;  //fuerza a redibujar panel con el nuevo State
+        if OnStopped <> nil then OnStopped(nLeidos, term.CurXY);
       end;
     end;
-    if OnChangeState<>nil then OnChangeState(nLeidos, term.CurXY);
+    if OnChangeState<>nil then OnChangeState(txtState, term.CurXY);
   end;
 end;
-
-function TConexProc.LeeUltLinea: string;
+function TConexProc.LastLine: string;
 //Devuelve la línea donde se encuentra el cursor. Salvo que haya, saltos en el cursor,
 //devolverá siempre los últimos caracteres recibidos.
 begin
   Result := term.buf[term.CurY];
 end;
-
 procedure TConexProc.RefPanelEstado;   //Refresca el estado del panel del StatusBar asociado.
 begin
   if panel = nil then exit;  //protección
@@ -314,7 +317,7 @@ var
     c.Ellipse(xc-r, yc-r+1, xc+r, yc+r+1);
   end;
 begin
-  if state in [ECO_CONECTANDO, ECO_OCUPADO] then begin  //estados de espera
+  if State in [ECO_CONNECTING, ECO_BUSY] then begin  //estados de espera
     c.Pen.Width:=0;  //restaura ancho
     Circulo(c,Rect.Left+5,Rect.Top+5, angA);
     inc(angA);if angA>7 then angA:=0;
@@ -333,7 +336,7 @@ begin
     Circulo(c,Rect.Left+3,Rect.Top+9, angA);
     inc(angA);if angA>7 then angA:=0;
 
-  end else if state = ECO_ERROR_CON then begin //error de conexión
+  end else if State = ECO_ERROR_CON then begin //error de conexión
     //c´rculo rojo
     c.Brush.Color:=clRed;
     c.Pen.Color:=clRed;
@@ -347,7 +350,7 @@ begin
     p1.x := Rect.Left+5; p1.y := Rect.Top+12;
     p2.x := Rect.Left+12; p2.y := Rect.Top+5;
     c.Line(p1,p2);
-  end else if state = ECO_LIBRE then begin //disponible
+  end else if State = ECO_READY then begin //disponible
     c.Brush.Color:=clGreen;
     c.Pen.Color:=clGreen;
     c.Ellipse(Rect.Left+2, Rect.Top+2,Rect.Left+16, Rect.Top+16);
@@ -375,7 +378,7 @@ begin
     c.Line(p1,p2);
   end;
   c.Font.Color:=clBlack;
-  c.TextRect(Rect, 19 + Rect.Left, 2 + Rect.Top, txtEstado);
+  c.TextRect(Rect, 19 + Rect.Left, 2 + Rect.Top, txtState);
 end;
 
 function TConexProc.GetAnchoTerminal: integer;
@@ -390,41 +393,64 @@ begin
   term.width := AValue;
 end;
 
-procedure TConexProc.Open(progPath0, progParam0: string);
+procedure TConexProc.Open;
 //Inicia el proceso y verifica si hubo error al lanzar el proceso.
 begin
-  term.Clear;
   //Inicia la salida de texto, refrescando todo el terminal
   if OnInitLines<>nil then OnInitLines(term.buf, 1, term.height);
-
-  progPath := progPath0;
-  progParam := progParam0;  //guarda cadena de conexión
-
   if p.Running then p.Terminate(0);  { TODO : ¿No debería mandar CTRL-C y EXIT si la conexión está buena? }
   // Vamos a lanzar el compilador de FreePascal
   p.CommandLine := progPath + ' ' + progParam;
   // Definimos comportamiento de 'TProccess'. Es importante direccionar los errores.
   p.Options := [poUsePipes, poStderrToOutPut, poNoConsole];
   //ejecutamos
-  CambiarEstado(ECO_CONECTANDO);
+  CambiarEstado(ECO_CONNECTING);
   try
     p.Execute;
     if not p.Running then begin
        //Falló al iniciar
-       CambiarEstado(ECO_DETENIDO);
+       CambiarEstado(ECO_STOPPED);
        Exit;
     end;
     //Se inició, y esperamos a que RefresConexion() procese los datos recibidos
   except
-    if p.CommandLine = '' then
-      cadError := 'No se especificó aplicativo para conexión.'
+    if trim(p.CommandLine) = '' then
+      msjError := 'No se especificó aplicativo para conexión.'
     else
-      cadError := 'Fallo al iniciar aplicativo: '+ p.CommandLine;
-    HuboError:=true;   //marca error.
-    CambiarEstado(ECO_ERROR_CON); //geenra evento
+      msjError := 'Fallo al iniciar aplicativo: '+ p.CommandLine;
+    CambiarEstado(ECO_ERROR_CON); //genera evento
   end;
 end;
-procedure TConexProc.LimpiarTerminal;
+procedure TConexProc.Open(progPath0, progParam0: string);
+//Similar a Open, pero permite indicar programa
+begin
+  term.Clear;
+
+  progPath := progPath0;
+  progParam := progParam0;  //guarda cadena de conexión
+  if trim(progPath) = '' then exit;  //protección
+  Open;   //puede dar error
+end;
+function TConexProc.Close: boolean;
+//Cierra la conexión actual. Si hay error devuelve False.
+var c: integer;
+begin
+  Result := true;
+  //verifica el proceso
+  if p.Running then p.Terminate(0);  { TODO : ¿No debería mandar CTRL-C y EXIT si la conexión está buena? }
+  //espera hasta 100 mseg
+  c := 0;
+  while p.Running and (c<20) do begin
+    sleep(5);
+    inc(c);
+  end;
+  if c>= 20 then exit(false);  //sale con error
+  //Pasa de Runnig a Not Running
+  CambiarEstado(ECO_STOPPED);
+  //Puede que quede datos en el "stdout"
+  LeeSalidaProc; //lee lo que queda
+end;
+procedure TConexProc.ClearTerminal;
 {Reinicia el terminal iniciando en (1,1) y limpiando la grilla}
 begin
   term.Clear;   //limpia grilla y reinicia cursor
@@ -433,8 +459,8 @@ begin
 end;
 
 function TConexProc.ContienePrompt(const linAct, prIni, prFin: string): integer;
-//Verifica si una cadena contiene al prompt, usando los valroes de cadena inicial (prIni)
-//y cadena final (prFin). LA veriifcación se hace siempre desde el inicio de la cadena.
+//Verifica si una cadena contiene al prompt, usando los valores de cadena inicial (prIni)
+//y cadena final (prFin). La veriifcación se hace siempre desde el inicio de la cadena.
 //Si la cadena contiene al prompt, devuelve la longitud del prompt hallado, de otra forma
 //devuelve cero.
 //Si la salida del proceso va a ir a un editor con resaltador de sintaxis, esta rutina debe
@@ -463,6 +489,37 @@ begin
      end;
    end;
 end;
+function TConexProc.ContienePromptF(const linAct, prIni, prFin: string): integer;
+//Versión de ContienePrompt, pero busca siempre desde el final.
+var
+  l: Integer;
+  pd: SizeInt;
+begin
+  Result := 0;   //valor por defecto
+  if prIni='' then exit;
+  l := length(prIni);
+  if prFin = '' then begin //caso simple, solo evalúa prIni
+    //Solo se valida con prIni
+    if AnsiEndsStr(prIni, linAct) then
+      Result := l  //el tamaño del prompt
+    else
+      Result := 0;
+    exit;    //no hace falta explorar más
+  end else begin  //debe usar prIni y prFin
+    if AnsiEndsStr(prFin, linAct) then begin
+      //termina con la cadena apropiada
+      //vemos si contiene el inicio
+      pd :=pos(prIni,linAct);
+      if pd>0 then begin  //encontró
+        Result := l-pd+1;  //el tamaño del prompt
+      end;
+      exit;
+    end else begin
+      //no termina como debe
+      exit;
+    end;
+  end;
+end;
 function TConexProc.EsPrompt(const cad: string): boolean;
 //Indica si la línea dada, es el prompt, de acuerdo a los parámetros dados. Esta función
 //se pone aquí, porque aquí se tiene fácil acceso a las configuraciones del prompt.
@@ -471,15 +528,19 @@ var
 begin
   if detecPrompt then begin  //si hay detección activa
     n := ContienePrompt(cad, prIni, prFin);
-    Result := (n>0) and  (n = length(cad));
+    if detParcial then begin
+      Result := (n>0);
+    end else begin  //debe ser exacto
+      Result := (n>0) and  (n = length(cad));
+    end;
   end else begin
     Result := false;
   end;
 end;
 function TConexProc.LeeSalidaProc: boolean;
 {Verifica la salida del proceso. Si llegan datos los pasa a "term" y devuelve TRUE.
-Lee en un solo bloque si el tamaño de los datos, es menor que TAM_BLOQUE, en caso
-contrario lee varios bloques. Actualiza "nLeidos", "HayPrompt" y "HayError". }
+Lee en un solo bloque si el tamaño de los datos, es menor que UBLOCK_SIZE, en caso
+contrario lee varios bloques. Actualiza "nLeidos", "HayPrompt". }
 var nDis : longint;
     nBytes : LongInt;
 begin
@@ -492,15 +553,15 @@ begin
     //vemos cuantos bytes hay "en este momento"
     nDis := P.Output.NumBytesAvailable;
     if nDis = 0 then break;  //sale del lazo
-    if nDis < TAM_BLOQUE then  begin
+    if nDis < UBLOCK_SIZE then  begin
       //leemos solo los que hay, sino se queda esperando
       nBytes := P.Output.Read(bolsa, nDis);
       bolsa[nBytes] := #0;   //marca fin de cadena
       term.AddData(@bolsa);  //puede generar eventos
       nLeidos += nBytes;
     end else begin
-      //leemos bloque de TAM_BLOQUE bytes
-      nBytes := P.Output.Read(bolsa, TAM_BLOQUE);
+      //leemos bloque de UBLOCK_SIZE bytes
+      nBytes := P.Output.Read(bolsa, UBLOCK_SIZE);
       bolsa[nBytes] := #0;   //marca fin de cadena
       term.AddData(@bolsa);  //puede generar eventos
       nLeidos += nBytes;
@@ -523,48 +584,36 @@ begin
 end;
 procedure TConexProc.RefresConexion(Sender: TObject);
 //Refresca el estado de la conexión. Verifica si hay datos de salida del proceso.
-//Pone "HayError" en true si capturó alguna línea con el mensaje "ORA-*" o "SP2-*".
 begin
-  if state = ECO_DETENIDO then Exit;  //No está corriendo el proceso.
-  HayError := false;
+  if State = ECO_STOPPED then Exit;  //No está corriendo el proceso.
   if p.Running then begin
      //Se está ejecutando
-     if LeeSalidaProc then begin //actualiza "HayError" y "HayPrompt"
-        if state in [ECO_LIBRE, ECO_OCUPADO] then begin
-           //Se tiene conexión a la base de datos
-           if HayError then begin   //verifica error
-              HuboError:=true; {permite verificar si hubo error al llegar el prompt,
-                                porque "HayError", se pierde con cada exploración.}
-              if OnHuboError<>nil then OnHuboError(nLeidos, pErr);//
-           end;
+     if LeeSalidaProc then begin //actualiza "HayPrompt"
+        if State in [ECO_READY, ECO_BUSY] then begin
            if HayPrompt then begin
-              CambiarEstado(ECO_LIBRE);
+              CambiarEstado(ECO_READY);
            end else begin
-              CambiarEstado(ECO_OCUPADO);
+              CambiarEstado(ECO_BUSY);
            end;
         end else begin
-           //Se está esperando conseguir la conexión (state = ECO_CONECTANDO)
-           if HayError then begin
-              HuboError:=true; {permite verificar si hubo error al llegar el prompt,
-                               porque "HayError", se pierde con cada exploración.}
-              CambiarEstado(ECO_ERROR_CON);
-           end;
+           //Se está esperando conseguir la conexión (State = ECO_CONNECTING)
+           //Puede que se detenga aquí con un mensaje de error en lugar del prompt
            if HayPrompt then begin
               //se consiguió conectar por primera vez
-//              state := ECO_LIBRE;  //para que pase a ECO_OCUPADO
+//              State := ECO_READY;  //para que pase a ECO_BUSY
 //              SendLn(COMAN_INIC); //envía comandos iniciales (lanza evento Ocupado)
-              CambiarEstado(ECO_LIBRE);
+              CambiarEstado(ECO_READY);
            end;
         end;
      end;
   end else begin //terminó
-     CambiarEstado(ECO_DETENIDO);
+     CambiarEstado(ECO_STOPPED);
      LeeSalidaProc; //lee por si quedaban datos en el buffer
   end;
   //actualiza animación
   inc(cAnim);
   if (cAnim mod 4) = 0 then begin
-    if state in [ECO_CONECTANDO, ECO_OCUPADO] then begin  //estados de espera
+    if State in [ECO_CONNECTING, ECO_BUSY] then begin  //estados de espera
       inc(angA);if angA>7 then angA:=0;
       RefPanelEstado;
     end;
@@ -578,18 +627,34 @@ begin
   if p = NIL then exit;
   if not p.Running then exit;
   p.Input.Write(txt[1], length(txt));  //pasa el origen de los datos
-  //para que se genere un cambio de state aunque el comando sea muy corto
-  if state = ECO_LIBRE then CambiarEstado(ECO_OCUPADO);
+  //para que se genere un cambio de State aunque el comando sea muy corto
+  if State = ECO_READY then CambiarEstado(ECO_BUSY);
 end;
-procedure TConexProc.SendLn(txt: string; saltoUNIX: boolean = false);
-{Envía un comando al proceso. Incluye el salto de línea al final de la línea.}
+procedure TConexProc.SendLn(txt: string);
+{Envía un comando al proceso. Incluye el salto de línea al final de la línea.
+ También puede recibir cadneas de varias líneas}
 begin
-  txt+=#13#10;
-  if saltoUNIX then
-    txt := StringReplace(txt,#13#10,#10,[rfReplaceAll]);
+  //reemplaza todos los saltos por #1
+  txt := StringReplace(txt,#13#10,#1,[rfReplaceAll]);
+  txt := StringReplace(txt,#13,#1,[rfReplaceAll]);
+  txt := StringReplace(txt,#10,#1,[rfReplaceAll]);
+  //incluye el salto final
+  txt += #1;
+  //aplica el salto configurado
+  if sendCRLF then begin
+    txt := StringReplace(txt,#1,#13#10,[rfReplaceAll]); //envía CRLF
+  end else begin
+    txt := StringReplace(txt,#1,#10,[rfReplaceAll]);  //envía LF
+//  txt := StringReplace(txt,#1,#13,[rfReplaceAll]);  //envía CR
+  end;
   Send(txt);
 end;
-
+//respuesta a eventos de term
+procedure TConexProc.termAddLine;
+//Se pide agregar líneas a la salida
+begin
+  if OnAddLine<>nil then OnAddLine(term.height);
+end;
 procedure TConexProc.termRefreshScreen(linesAdded: integer);
 //EVento que indica que se debe refrescar la pantalla
 begin
@@ -606,11 +671,6 @@ procedure TConexProc.termRefreshLines(fIni, fFin: integer);
 begin
   if OnRefreshLines<> nil then OnRefreshLines(term.buf, fIni, fFin, term.height);
 end;
-procedure TConexProc.termAddLine;
-//Se pide agregar líneas a la salida
-begin
-  if OnAddLine<>nil then OnAddLine(term.height);
-end;
 procedure TConexProc.termRecSysComm(info: string);
 //Se ha recibido comando con información del sistema.
 begin
@@ -618,36 +678,95 @@ begin
   if OnRecSysComm<>nil then OnRecSysComm(info, term.CurXY);
   //Se puede asumir que llega el prompt pero no siempre funciona
 //  HayPrompt := true;    //marca bandera
-//  CambiarEstado(ECO_LIBRE);  //cambia el state
+//  CambiarEstado(ECO_READY);  //cambia el State
 end;
-
-function TConexProc.Close: boolean;
-//Cierra la conexión actual. Si hay error devuelve False.
-var c: integer;
-begin
-  Result := true;
-  //verifica el proceso
-  if p.Running then p.Terminate(0);  { TODO : ¿No debería mandar CTRL-C y EXIT si la conexión está buena? }
-  //espera hasta 100 mseg
-  c := 0;
-  while p.Running and (c<20) do begin
-    sleep(5);
-    inc(c);
+procedure TConexProc.AutoConfigPrompt;
+//Configura el prompt actual como el prompt por defecto. Esta configuración no es
+//para nada, precisa pero ahorrará tiempo en configurar casos sencillos
+var
+  ultlin: String;
+  function SimbolosIniciales(cad: string): string;
+  //Toma uno o dos símbolos iniciales de la cadena. Se usan símbolos porque
+  //suelen ser fijos, mientras que los caracteres alfabéticos suelen cambiar
+  //en el prompt.
+  begin
+    Result := cad[1];  //el primer caracter se tomará siempre
+    if length(cad)>3 then begin
+      //agrega si es un símbolo.
+      if not (cad[2] in ['a'..'z','A'..'Z']) then
+        Result += cad[2];
+    end;
   end;
-  if c>= 20 then exit(false);  //sale con error
-  //Pasa de Runnig a Not Running
-  CambiarEstado(ECO_DETENIDO);
-  //Puede que quede datos en el "stdout"
-  LeeSalidaProc; //lee lo que queda y actualiza "HayError"
+  function SimbolosFinales(cad: string): string;
+  //Toma uno o dos o tres caracteres finales de la cadena. Se usan símbolos porque
+  //suelen ser fijos, mientras que los caracteres alfabéticos suelen cambiar
+  //en el prompt.
+  var
+    p: Integer;
+    hayEsp: Boolean;
+  begin
+    p := length(cad);  //apunta al final
+    hayEsp := (cad[p] = ' ');
+    cad := TrimRight(cad);  //quita espacios
+    if length(cad)<=2 then begin
+      //hay muy pocos caracteres
+      Result := cad[p-1]+cad[p];  //toma los últimos
+      exit;
+    end;
+    //hay suficientes caracteres
+    p := length(cad);  //apunta al final (sin espacios)
+    Result := cad[p];
+    //agrega si es un símbolo.
+    if not (cad[p-1] in ['a'..'z','A'..'Z']) then
+      Result := cad[p-1] + Result;
+    //completa con espacio si hubiera
+    if hayEsp then Result += ' ';
+  end;
+begin
+  //utiliza la línea actual del terminal
+  prIni := '';
+  prFin := '';
+  ultlin := LastLine;
+  if ultlin = '' then begin
+    ShowMessage('No se encuentra un prompt en el terminal para configurarlo.');
+    exit;
+  end;
+  //casos particulares
+  If ultlin = '>>> ' Then begin //caso especial
+    DetecPrompt := true;
+    prIni := '>>';
+    prFin := ' ';
+    SendLn(''); //para que detecte el prompt
+    exit;
+  end;
+  If ultlin = 'SQL> ' Then begin //caso especial
+    DetecPrompt := true;
+    prIni := 'SQL> ';
+    prFin := '';
+    SendLn(''); //para que detecte el prompt
+    exit;
+  end;
+  If length(ultlin)<=3 Then begin //caso especial
+    DetecPrompt := true;
+    prIni := ultlin;
+    prFin := '';
+    SendLn(''); //para que detecte el prompt
+    exit;
+  end;
+  //caso general
+  DetecPrompt := true;
+  prIni := SimbolosIniciales(ultlin);
+  prFin := SimbolosFinales(ultlin);
+  SendLn(''); //para que detecte el prompt
 end;
+//constructor y destructor
 constructor TConexProc.Create(PanControl: TStatusPanel);
 //Constructor
 begin
   progPath := '';  //ruta por defecto
   lstTmp := TStringList.Create;   //crea lista temporal
   p := TProcess.Create(nil); //Crea proceso
-  CambiarEstado(ECO_DETENIDO);  //state inicial. Genera el primer evento
-  HayError := false;         //Inicia bandera de error
+  CambiarEstado(ECO_STOPPED);  //State inicial. Genera el primer evento
   //configura temporizador
   clock := TTimer.Create(nil);
   clock.interval:=50;  {100 es un buen valor, pero para mayor velocidad de recepción, se
@@ -657,6 +776,8 @@ begin
   if panel<> nil then
     panel.Style:=psOwnerDraw;  //configura panel para dibujarse por evento
   detecPrompt := true;    //activa detección de prompt por defecto
+  sendCRLF := false;
+
   term := TTermVT100.Create; //terminal
   term.OnRefreshAll:=@termRefreshScreen;
   term.OnRefreshLine:=@termRefreshLine;

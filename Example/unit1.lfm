@@ -56,7 +56,11 @@ object Form1: TForm1
     Height = 23
     Top = 373
     Width = 457
-    Panels = <>
+    Panels = <    
+      item
+        Width = 50
+      end>
+    SimplePanel = False
   end
   object label2: TLabel
     Left = 8
@@ -82,5 +86,14 @@ object Form1: TForm1
     Caption = '&Send'
     OnClick = Button3Click
     TabOrder = 6
+  end
+  object Button4: TButton
+    Left = 8
+    Height = 25
+    Top = 72
+    Width = 104
+    Caption = 'Detect Prompt'
+    OnClick = Button4Click
+    TabOrder = 7
   end
 end
