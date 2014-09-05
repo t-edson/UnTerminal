@@ -130,3 +130,9 @@ Se puede configurar: prIni='[' y prFin = '$ '. Los espacios son también parte d
 Tambíen se puede usar la función de configuración automática del prompt, que se ejecuta llamando al método AutoConfigPrompt. Pero este método debe ser llamado cuando se tenga el prompt visible en la última línea del terminal.
 
 'AutoConfigPrompt' lee la última línea asumiendo que es el pprompt y fija valores automáticamente para 'prIni' y 'prFin'.
+
+Se puede usar también una rutina personalizada para la detección deñ prompt. Esta se debe enganchar al evento OnChkForPrompt() que tiene la forma:
+
+function(lin: string): boolean;
+
+El evento recibe la línea a explorar y debe devolver TRUE, si es que se determina que la línea actual contiene al prompt. Al activar este evento, se desactiva la detección interna de la unidad.

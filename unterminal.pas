@@ -1,20 +1,14 @@
 {
-UnTerminal 0.3
+UnTerminal 0.4b
 ===============
 Por Tito Hinostroza 25/08/2014
 
-* Se eliminan los eventos OnHuboError(), OnErrorConex(), y las variables HayError, pErr y
-HuboError, porque no se detecta el estado de error en esta unidad.
-* Se agrega la bandera sendCRLF, para enviar CR+LF, en lugar de CR, como es usual en
-conexiones telnet.
-* Se incluye la función AutoConfigPrompt, para configurar automáticamente el prompt
-actual.
-* Se cambia el nombre del método LeeUltLinea(), por LastLine().
-* Se cambia nombre de constante TAM_BLOQUE a UBLOCK_SIZE.
-* Se cambia de nombre a LimpiarTerminal() por ClearTerminal().
-* Se agregan algunas protecciones adicionales.
-* Se cambia declaración de OnChangeState(), para dar texto sobre el estado.
-* Se cambia de nombre a los estados.
+* Se crea el método SendVT100Key(), para enviar teclas de control traduciéndolas a
+secuencias en VT100,
+* Se agregó el evento OnChkForPrompt(), para poder agregar una rutina de verificación
+externa del Prompt.
+* Se separan mensajes de texto en constantes para facilitar la traducción.
+* Se cambia nombre de propiedad AnchoTerminal por TerminalWidth.
 }
 {
 Descripción
@@ -93,7 +87,7 @@ unit UnTerminal;
 {$mode objfpc}{$H+}
 interface
 uses  Classes, SysUtils, Process, ExtCtrls, Dialogs, Graphics, ComCtrls,
-     LCLProc, types, Strutils, TermVT;
+     LCLProc, LCLType, types, Strutils, TermVT;
 const
   UBLOCK_SIZE = 2048;    //Tamaño de bloque de lectura de salida de proceso
 
@@ -110,6 +104,7 @@ TEstadoCon = (
 {Evento. Pasa la cantidad de bytes que llegan y la columna y fila final de la matriz Lin[] }
 TEvProcState = procedure(nDat: integer; pFinal: TPoint) of object;
 TEvLlegoPrompt = procedure(prompt: string; pIni: TPoint; HeightScr: integer) of object;
+TEvChkForPrompt = function(lin: string): boolean;
 TEvRecSysComm = procedure(info: string; pIni: TPoint) of object;
 
 TEvRefreshAll  = procedure(const grilla: TtsGrid; linesAdded: integer) of object;
@@ -154,6 +149,7 @@ public
   OnChangeState: TEvRecSysComm;    //cambia de estado
   OnRecSysComm : TEvRecSysComm;   {indica que llegó información del sistema remoto (usuario,
                                   directorio actual, etc) Solo para conex. Telnet}
+  OnChkForPrompt: TEvChkForPrompt; //Permite incluir una rutina externa para verificación de prompt.
   //eventos de llegada de datos
   OnRefreshAll  : TEvRefreshAll;   //Usado para refresvar todo el contenido del terminal
   OnInitLines   : TEvAddLines;     //indica que se debe agregar líneas de texto
@@ -165,9 +161,10 @@ public
   procedure Open(progPath0, progParam0: string); //Inicia conexión
   function Close: boolean;    //Termina la conexión
   procedure ClearTerminal;
-  property AnchoTerminal: integer read GetAnchoTerminal write SetAnchoTerminal;
+  property TerminalWidth: integer read GetAnchoTerminal write SetAnchoTerminal;
   procedure Send(const txt: string);
   procedure SendLn(txt: string);  //Envía datos por el "stdin"
+  procedure SendVT100Key(var Key: Word; Shift: TShiftState);  //Envía una tecla con secuencia de escape
   //control de barra de estado
   procedure RefPanelEstado;
   procedure DibPanelEstado(c: TCanvas; const Rect: TRect);
@@ -199,19 +196,26 @@ end;
 implementation
 //uses FormConfig;   //se necesita acceder a las propiedades de prompt
 const
-   NUM_LIN_ATRAS = 12;  {número de línea a explorar, hacia atrás, para buscar mensajes de
+  NUM_LIN_ATRAS = 12;  {número de línea a explorar, hacia atrás, para buscar mensajes de
                         error}
-   STA_NAME_CONNEC  = 'Connecting';
-   STA_NAME_ERR_CON = 'Connection Error';
-   STA_NAME_BUSY    = 'Busy';
-   STA_NAME_READY   = 'Ready';
-   STA_NAME_STOPPED = 'Stopped';
-
-{   STA_NAME_CONNEC  = 'Conectando';
-   STA_NAME_ERR_CON = 'Error en conexión';
-   STA_NAME_BUSY    = 'Ocupado';
-   STA_NAME_READY   = 'Disponible';
-   STA_NAME_STOPPED = 'Detenido';}
+  STA_NAME_CONNEC  = 'Connecting';
+  STA_NAME_ERR_CON = 'Connection Error';
+  STA_NAME_BUSY    = 'Busy';
+  STA_NAME_READY   = 'Ready';
+  STA_NAME_STOPPED = 'Stopped';
+  MSG_ERR_NO_APP_DEF = 'No Application specified for connection.';
+  MSG_FAIL_START_APP = 'Fail Starting Application: ';
+  MSG_NO_PRMP_FOUND  = 'Prompt Not Found for to configure in Terminal.';
+{
+  STA_NAME_CONNEC  = 'Conectando';
+  STA_NAME_ERR_CON = 'Error en conexión';
+  STA_NAME_BUSY    = 'Ocupado';
+  STA_NAME_READY   = 'Disponible';
+  STA_NAME_STOPPED = 'Detenido';
+  MSG_ERR_NO_APP_DEF = 'No se especificó aplicativo para conexión.';
+  MSG_FAIL_START_APP = 'Fallo al iniciar aplicativo: ';
+  MSG_NO_PRMP_FOUND  = 'No se encuentra un prompt en el terminal para configurarlo.';
+//}
 
 function Explode(delimiter:string; str:string):TStringDynArray;
 var
@@ -415,9 +419,9 @@ begin
     //Se inició, y esperamos a que RefresConexion() procese los datos recibidos
   except
     if trim(p.CommandLine) = '' then
-      msjError := 'No se especificó aplicativo para conexión.'
+      msjError := MSG_ERR_NO_APP_DEF
     else
-      msjError := 'Fallo al iniciar aplicativo: '+ p.CommandLine;
+      msjError := MSG_FAIL_START_APP + p.CommandLine;
     CambiarEstado(ECO_ERROR_CON); //genera evento
   end;
 end;
@@ -577,8 +581,13 @@ begin
   viendo si la línea actual empezaba con el prompt, pero daba casos (sobretodo en
   conexiones lentas) en que llegaba una trama con pocos cracteres, de modo que se
   generaba el evento de llegada de prompt dos veces (tal vez más) en una misma línea}
-  if EsPrompt(term.buf[term.CurY]) then
-    HayPrompt:=true;
+  if OnChkForPrompt <> nil then begin
+    //Hay rutina de verificación externa
+    HayPrompt:=OnChkForPrompt(term.buf[term.CurY]);
+  end else begin
+    if EsPrompt(term.buf[term.CurY]) then
+      HayPrompt:=true;
+  end;
   {Se pone fuera, la rutina de detcción de prompt, porque también debe servir al
   resaltador de sintaxis}
 end;
@@ -649,6 +658,55 @@ begin
   end;
   Send(txt);
 end;
+procedure TConexProc.SendVT100Key(var Key: Word; Shift: TShiftState);
+//Envía una tecla de control (obtenida del evento KeyDown), realizando primero
+//la transformación a secuencias de escapa.
+begin
+  case Key of
+  VK_END  : begin
+      if Shift = [] then Send(#27'[K');
+    end;
+  VK_HOME : begin
+      if Shift = [] then Send(#27'[H');
+    end;
+  VK_LEFT : begin
+      if Shift = [] then Send(#27'[D');
+    end;
+  VK_RIGHT: begin
+      if Shift = [] then Send(#27'[C');
+    end;
+  VK_UP   : begin
+      if Shift = [] then Send(#27'[A');
+    end;
+  VK_DOWN : begin
+      if Shift = [] then Send(#27'[B');
+    end;
+  VK_F1   : begin
+      if Shift = [] then Send(#27'OP');
+    end;
+  VK_F2   : begin
+      if Shift = [] then Send(#27'OQ');
+    end;
+  VK_F3   : begin
+      if Shift = [] then Send(#27'OR');
+    end;
+  VK_F4   : begin
+      if Shift = [] then Send(#27'OS');
+    end;
+  VK_BACK : begin
+      if Shift = [] then Send(#8);  //no transforma
+    end;
+  VK_TAB : begin
+      if Shift = [] then Send(#9);  //no transforma
+    end;
+  VK_A..VK_Z: begin
+      if Shift = [ssCtrl] then begin  //Ctrl+A, Ctrl+B, ... Ctrl+Z
+        Send(chr(Key-VK_A+1));
+      end;
+    end;
+  end;
+end;
+
 //respuesta a eventos de term
 procedure TConexProc.termAddLine;
 //Se pide agregar líneas a la salida
@@ -728,7 +786,7 @@ begin
   prFin := '';
   ultlin := LastLine;
   if ultlin = '' then begin
-    ShowMessage('No se encuentra un prompt en el terminal para configurarlo.');
+    ShowMessage(MSG_NO_PRMP_FOUND);
     exit;
   end;
   //casos particulares
