@@ -53,7 +53,7 @@ implementation
 
 procedure TForm1.Button1Click(Sender: TObject);
 begin
-  proc.Open('cmd','');
+  proc.Open(txtProcess.Text,'');
 end;
 
 procedure TForm1.Button2Click(Sender: TObject);
