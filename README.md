@@ -1,4 +1,4 @@
-UnTerminal 0.4
+UnTerminal 0.4b
 ===============
 
 Unidad en Lazarus, para el control de procesos tipo consola, con detección de "prompt".
@@ -16,10 +16,10 @@ Los procesos que se pueden controlar con esta unidad son diversos, como clientes
 
 En esta versión no permite leer el flujo de salida de errores.
 
-Para conectarse mediante un proceso, se debe crear una instancia de TConexProc, y seguir la secuencia de conexión:
+Para conectarse mediante un proceso, se debe crear una instancia de TConsoleProc, y seguir la secuencia de conexión:
 
 ```
-  p := TConexProc.Create(StatusBar1.Panels[1]);  //Crea conexión
+  p := TConsoleProc.Create(StatusBar1.Panels[1]);  //Crea conexión
   ...
   p.Free.
 ```
@@ -33,7 +33,7 @@ usará). En este caso se debe manejar el evento OnDrawPanel() de la Barra de est
  ...
  procedure Form1.SBDrawPanel(StatusBar:TStatusBar; Panel:TStatusPanel; const Rect:TRect);
  begin
-  if panel.Index = 1 then q.DibPanelEstado(StatusBar.Canvas, Rect);
+  if panel.Index = 1 then q.DrawStatePanel(StatusBar.Canvas, Rect);
  end;
 ```
 
@@ -101,7 +101,18 @@ end;
 
 El evento OnInitLines(), es llamado solo una vez al inicio para dimensionar el StringList, de modo que pueda contener a todas las líneas del terminal VT100.
 
-Los comandos, se envían al proceso con el método Send(). En principio, solo debería mandarse un solo comando por Send() porque, enviar más de un comando podría hacer que el proceso pase repetidamente por  las fases:
+Los comandos, se envían al proceso con los método Send(), SendLn() o SendFile(). SendLn() es similar a Send(), pero envía adicionalmente un salto de línea al final. El salto de línea es necesario para que el proceso del terminal reconozca que se le ha enviado un comando.
+
+El salto de línea a enviar se configura con la propiedad 'sendCRLF'. Por defecto el salto de línea es el caracter LF, pero si 'sendCRLF' se pone a TRUE, el salto de línea enviado con SendLn(), es CR+LF. 'sendCRLF', solo tiene efecto cuando se usa SendLn() o SendFile(). 
+Desde luego, que se puede enviar cualquier tipo de salto de línea o caracter si es que se usa el método Send().
+
+El método SendFile(), envía el contendio completo de un archivo al terminal. El salto de línea enviado depende del valor de 'sendCRLF'.
+
+Para enviar caracteres de control, se debe usar el método SendVT100Key(), porque los caracteres de control, deben convertirse primero en secuencias de escape, al menos para los aplicativos que reconozcan las secuencias de escape. Por ejemplo si se envía la tecla direccional derecha, con SendVT100Key(), primero se transformará en la secuencia ESC+[C.
+
+Para enviar simples comandos (que son secuencias de caracteres imprimibles), basta con usar SenLn().
+
+En principio, solo debería mandarse un solo comando por SendLn() porque, enviar más de un comando podría hacer que el proceso pase repetidamente por  las fases:
 
 ECO_BUSY -> ECO_READY -> ECO_BUSY ... -> ECO_READY.
 
@@ -113,23 +124,36 @@ Así se ahorra memoria, porque por lo general, el texto de salida está destinad
 almacenado en algún otro control como un editor de texto o una grilla.
 Es responsabilidad del programador, limitar el tamaño de los datos almacenados.
 
+Los datos de salida que llegan por el terminal, se recuperan por sondeo del flujo de salida. Por defecto, se explora la salida en un intervalo de 50 milisegundos, y usando un "buffer" interno de 2048 bytes.
+
+Para cambiar la frecuencia de sondeo de la salida del proceso, se debe cambiar el valor de la propiedad 'clock.interval'. Pero no es recomendable.
+
 # Detección del Prompt
 
-La detección del prompt se hace explorando las cadenas de texto que van llegando del proceso. No se tiene otra forma de detcción más confiable.
+La detección del Prompt se hace explorando las cadenas de texto que van llegando del proceso, para ver si coinciden con los parámetros de la detección. Esta forma puede no ser muy confiable si el Prompt del proceso es muy cambiante.
 
-Para configurar la detección del prompt se deben poner la propiedad 'detecPrompt' en TRUE y fijar valores para 'prIni' y 'prFin'.
+Para configurar la detección del Prompt se debe poner la propiedad 'detecPrompt' en TRUE y fijar valores para 'promptIni' y 'promptFin'. Estas cadevas determinan la parte inicial y final del prompt.
 
-Si el prompt es fijo y no cambia, se puede poner su valor directamente en 'prIni' y se deja 'prFin' vacío. Pero si el prompt es variable, se puede poner la parte inicial en 'prIni' y la parte final en 'prFin', pero eligiendo valores que no den lugar a confusión con líneas de datos.
+Si el prompt es fijo y no cambia, se puede poner su valor directamente en 'promptIni' y se deja 'promptFin' vacío. Pero si el prompt es variable, se puede poner la parte inicial en 'promptIni' y la parte final en 'promptFin', pero eligiendo valores que no den lugar a confusión con líneas de datos.
 
 Así, por ejemplo para detectar un prompt de tipo:
 
-[usuario@localhost ~]$ 
+```[usuario@localhost ~]$ ```
 
-Se puede configurar: prIni='[' y prFin = '$ '. Los espacios son también parte del texto que se debe configurar.
+Se puede configurar: promptIni='[' y promptFin = '$ '. Los espacios son también parte del texto que se debe configurar.
 
-Tambíen se puede usar la función de configuración automática del prompt, que se ejecuta llamando al método AutoConfigPrompt. Pero este método debe ser llamado cuando se tenga el prompt visible en la última línea del terminal.
+Por defecto se espera que el prompt encontrado sea exactamnente igual a la última línea del texto que llega por el terminal. Pero existen opciones adicionales. El tipo de coincidencia se puede configurar en la variable 'promptMatch'. Puede tener los siguientes valores:
 
-'AutoConfigPrompt' lee la última línea asumiendo que es el pprompt y fija valores automáticamente para 'prIni' y 'prFin'.
+   prmExactly,   //prompt es la línea entera
+   prmAtBegin,   //prompt aparece al inicio de la línea
+   prmAtEnd,     //prompt aparece al final de la línea
+   prmAtAnyPos   //prompt aparece en cualquier parte de la línea
+
+Por defecto, 'promptMatch' está en 'prmExactly'.
+
+Tambíen se puede usar la función de configuración automática del prompt, que se ejecuta llamando al método AutoConfigPrompt. Pero este método debe ser llamado cuando se tenga el Pprompt visible en la última línea del terminal.
+
+'AutoConfigPrompt' lee la última línea asumiendo que es el pprompt y fija valores automáticamente para 'promptIni' y 'promptFin'.
 
 Se puede usar también una rutina personalizada para la detección deñ prompt. Esta se debe enganchar al evento OnChkForPrompt() que tiene la forma:
 

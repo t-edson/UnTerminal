@@ -43,7 +43,7 @@ type
 
 var
   Form1: TForm1;
-  proc: TConexProc;
+  proc: TConsoleProc;
 
 implementation
 
@@ -73,7 +73,7 @@ end;
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
-  proc:= TConexProc.Create(nil);
+  proc:= TConsoleProc.Create(nil);
   proc.sendCRLF:=true;
   proc.OnInitLines:=@procInitLines;
   proc.OnRefreshLine:=@procRefreshLine;
@@ -87,14 +87,14 @@ begin
   proc.Destroy;
 end;
 
-procedure TForm1.procAddLine(HeightScr: integer);
-begin
-  Memo1.Lines.Add('');
-end;
-
 procedure TForm1.procChangeState(State: string; pFinal: TPoint);
 begin
   StatusBar1.Panels[0].Text:=State;
+end;
+
+procedure TForm1.procAddLine(HeightScr: integer);
+begin
+  Memo1.Lines.Add('');
 end;
 
 procedure TForm1.procInitLines(const grilla: TtsGrid; fIni, fFin: integer);
