@@ -21,11 +21,10 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="Unit1"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="0"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="37"/>
-        <CursorPos X="1" Y="56"/>
+        <TopLine Value="94"/>
+        <CursorPos X="31" Y="104"/>
         <UsageCount Value="24"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -48,10 +47,11 @@
       <Unit4>
         <Filename Value="..\UnTerminal.pas"/>
         <UnitName Value="UnTerminal"/>
+        <IsVisibleTab Value="True"/>
         <EditorIndex Value="1"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="843"/>
-        <CursorPos X="1" Y="875"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="1"/>
         <UsageCount Value="10"/>
         <Loaded Value="True"/>
       </Unit4>
@@ -59,7 +59,7 @@
     <General>
       <ActiveWindowIndexAtStart Value="0"/>
     </General>
-    <JumpHistory Count="28" HistoryIndex="27">
+    <JumpHistory Count="29" HistoryIndex="28">
       <Position1>
         <Filename Value="unit1.pas"/>
         <Caret Line="90" Column="35" TopLine="73"/>
@@ -172,6 +172,10 @@
         <Filename Value="unit1.pas"/>
         <Caret Line="1" Column="1" TopLine="1"/>
       </Position28>
+      <Position29>
+        <Filename Value="..\UnTerminal.pas"/>
+        <Caret Line="850" Column="17" TopLine="809"/>
+      </Position29>
     </JumpHistory>
   </ProjectSession>
   <EditorMacros Count="0"/>
