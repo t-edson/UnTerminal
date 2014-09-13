@@ -1,4 +1,15 @@
-{Modificado por Tito Hinostroza 04/09/2014
+{
+TernVT 0.6
+===============
+Por Tito Hinostroza 09/09/2014
+* Se elimina el evento OnRefreshLine(). Se elimina el tipo TtsRefreshLine.
+* Se cambia nombre del evento OnAddLine
+* Se agrega el evento OnLineCompleted(), para detectar líneas agregadas completas.
+* Se elimina el evento OnRefreshAll().
+* Se hace público "Busy", para poder controlar el estado de ocupado.
+
+Descripción
+============
  Define a un terminal tipo VT100, como una matriz de caracteres. Solo se implementan las
  secuencias de escape básicas. No se implementa opción de coloreado o atributos de texto.
  Los caracteres de pantalla se almacenan en el arreglo de cadenas buf[] y se trata como
@@ -8,13 +19,13 @@
  Los datos se esperan que lleguen en bloques, a través de AddData().
 
  Para mostrar el contenido del terminal, se puede leer el arreglo buf[], de forma periódica,
- o usando el evento OnRefreshAll(), que se llama cada vez que se agregan datos con
- AddData().
+ o cada vez que se genera el evento OnRefreshLines().
 
- Para controlar mejor el refresco de la pantalla se deben usar los eventos: OnRefreshLine()
- y OnRefreshLines(), que sirven para refrescar lineas individuales o rangos de líneas,
- cuando hay cambios. También debe controlarse el evento OnAddLine(), que se genera cuando
- hay un desplazamiento del contenido del terminal.
+Pero la forma más eficiente de manejar el refresco de la pantalla es través de los
+eventos: OnRefreshLines() y OnScrollLines().
+OnRefreshLines(), Sirven para refrescar lineas individuales o rangos de líneas,
+cuando hay cambios. El evento OnScrollLines(), se genera cuando hay un desplazamiento
+del contenido del terminal.
 
                                                    Por Tito Hinostroza 27/06/2014 }
 unit TermVT;
@@ -39,26 +50,28 @@ type
                   EscSeqCommand   //secuencia ESC]
                      );
   //tipos para eventos
-  TtsRecSysComm = procedure(info: string) of object;
-  TtsRefScreen = procedure(linesAdded: integer) of object;
-  TtsRefreshLine = procedure(fil: integer) of object;
   TtsRefreshLines = procedure(fIni, fFin: integer) of object;
-  TtsAddLine = procedure of object;
+  TtsScrollLines  = procedure of object;
+  TtsRecSysComm   = procedure(info: string) of object;
+  TtsLineCompleted= procedure(const lineCompleted: string) of object;
 //  TCursorEvent = procedure(x,y: integer);
 
   { TTermVT100 }
 
   TTermVT100 = class
   public
-    height: integer;       //alto real de pantalla
-    width : integer;       //ancho real de pantalla
-    buf : TtsGrid;         //grilla de pantalla
-    OnRecSysComm  : TtsRecSysComm;    //Se ha recibido imformación del sistema
-    OnRefreshAll  : TtsRefScreen;     //Para refrescar toda la pantalla
-    OnRefreshLine : TtsRefreshLine;   //Solicita refrescar una línea
-    OnRefreshLines: TtsRefreshLines;  //Solicita refrescar un rango de líneas
-    OnAddLine     : TtsAddLine;       //Indica que se ha agregado una línea al terminal
-    ProcEscape    : boolean;          //Indica si se debe reconocer las secuencias de escape
+    height    : integer;   //alto real de pantalla
+    width     : integer;   //ancho real de pantalla
+    buf       : TtsGrid;   //grilla de pantalla
+    linesAdded: Integer;   //líneas agregadas, después de cada llamada a AddData()
+    Busy      : boolean;     //bandera de ocupado
+    //eventos para refrescar pantalla
+    OnRefreshLines : TtsRefreshLines;  //Solicita refrescar un rango de líneas
+    OnScrollLines  : TtsScrollLines;       //Indica que se ha agregado una línea al terminal
+    //eventos adicionales
+    OnRecSysComm   : TtsRecSysComm;    //Se ha recibido imformación del sistema
+    OnLineCompleted: TtsLineCompleted; //Indica que se acaba de agregar una línea completa
+    ProcEscape     : boolean;          //Indica si se debe reconocer las secuencias de escape
 //    OnChangeCursor: TCursorEvent;   //Cambia posición del cursor
     procedure SetCurX(AValue: integer);
     procedure SetCurY(AValue: integer);
@@ -74,8 +87,6 @@ type
     //banderas de estado
     InEscape  : boolean;     //en una secuencia de escape
     CurEscSeq : tEscSequence; //tipo de secuencia de escape actual
-    Busy      : boolean;     //bandera de ocupado
-    linesAdded: Integer;     //contador para líneas agregadas
     minModified: Integer;    //CurY mínimo que se modifica
     maxModified: Integer;    //CurY máximo que se modifica
     procedure eraseChar(const n: integer);
@@ -93,7 +104,6 @@ type
     procedure CursorRet;
     procedure CursorDown;
     procedure CursorRight;
-//    p       : TProcess;
   public
     function CurXY: TPoint;
     property CurX: integer read FCurX;
@@ -212,7 +222,8 @@ begin
   if minModified = 1 then begin
     //Este es un caso extremo porque se va a perder la línea 1, que ha sido modificada.
     //Primero deberíamos actualizarla en la salida, por si la desea registrar.
-    OnRefreshLine(1);
+    OnRefreshLines(1,1);
+    linesAdded := -1;  //para que pase a 0, cuando se incremente
     //ahora ya podemos desplazar
   end;
   //mueve las líneas
@@ -225,8 +236,8 @@ begin
   inc(linesAdded);
   //dispara evento
 //  if OnChangeCursor<>nil then OnChangeCursor(CurX,CurY);
-  if OnAddLine <> nil then begin
-    OnAddLine;  //para que se agregue una línea
+  if OnScrollLines <> nil then begin
+    OnScrollLines;  //para que se agregue una línea
   end;
   //actualiza las variables de modificación
   dec(minModified);
@@ -274,6 +285,7 @@ function TTermVT100.AddData(const cad: PChar): string;
 var
   i: Integer;
   largo: Integer;
+  tmp: String;
 begin
   i:=0;
   Busy := true;
@@ -286,7 +298,13 @@ begin
       inc(i);
     end else begin
       if cad[i]=#13 then begin  //salto de línea
-        CursorRet;
+        if OnLineCompleted <> nil then begin  //hay evento que generar
+          tmp := buf[CurY];     //guarda cadena que se termina de editar
+          CursorRet;
+          OnLineCompleted(tmp); //dispara evento
+        end else begin  //sin evento
+          CursorRet;
+        end;
         inc(i);
 //        if CurY>maxModified then maxModified := CurY;
         continue;
@@ -324,7 +342,7 @@ begin
           buf[CurY][CurX] := cad[i];  //escribe caracter
         end;
 //        CursorRight;   //mueve cursor
-        if CurX>=width then begin
+        if CurX>=width then begin   //salto por límite horizontal
           CursorRet;
         end else begin
           SetCurX(CurX+1);
@@ -337,14 +355,8 @@ begin
       end;
     end;
   end;
-  //llama a evento para refrescar toda pantalla
-  if OnRefreshAll<>nil then OnRefreshAll(linesAdded);
-  //Llama a eventos más selectivos de refresco de pantalla
-  if minModified = maxModified then begin  //solo se modificó una línea
-    if OnRefreshLine<>nil then OnRefreshLine(minModified);
-  end else begin //se modificó un rango de líneas
-    if OnRefreshLines<>nil then OnRefreshLines(minModified, maxModified);
-  end;
+  //Llama a evento selectivo de refresco de pantalla
+  if OnRefreshLines<>nil then OnRefreshLines(minModified, maxModified);
   Busy := false;
 end;
 procedure TTermVT100.escapeProcess(c: char);

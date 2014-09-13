@@ -1,4 +1,4 @@
-UnTerminal 0.5
+UnTerminal 0.6
 ===============
 
 Unidad en Lazarus, para el control de procesos tipo consola, con detección de "prompt".
@@ -9,7 +9,7 @@ Los procesos a controlar con esta unidad deben cumplir las siguientes condicione
 
 1. Que se puedan lanzar como procesos de tipo consola.
 2. Que su entrada y salida estándar sea de tipo texto.
-3. Que tengan prompt.
+3. Que tengan prompt. (No necesario si no importa detectar el prompt)
 4. Que acepten comandos.
 
 Los procesos que se pueden controlar con esta unidad son diversos, como clientes de telnet, ftp, o el mismo shell del sistema operativo, como se muestar en el ejemplo incluido.
@@ -70,16 +70,16 @@ Esta unidad solo ha sido probada en Windows, pero podría funcionar también en 
 # Configurando un Editor para mostrar la salida
 
 Para configurar un editor para mostrar la salida del proceso, se debe usar los eventos:
-OnInitLines(), OnRefreshLine(), OnRefreshLines() y OnAddLine():
+OnInitScreen(), OnRefreshLine(), OnRefreshLines() y OnAddLine():
 
 ```
-  proc.OnInitLines:=@procInitLines;
+  proc.OnInitScreen:=@procInitScreen;
   proc.OnRefreshLine:=@procRefreshLine;
   proc.OnRefreshLines:=@procRefreshLines;
   proc.OnAddLine:=@procAddLine;
 ...
 
-procedure TfrmPrincipal.procInitLines(const grilla: TtsGrid; fIni, fFin: integer);
+procedure TfrmPrincipal.procInitScreen(const grilla: TtsGrid; fIni, fFin: integer);
 begin
   for i:=fIni to fFin do SynEdit1.Lines.Add(grilla[i]);
 end;
@@ -99,7 +99,13 @@ begin
 end;
 ```
 
-El evento OnInitLines(), es llamado solo una vez al inicio para dimensionar el StringList, de modo que pueda contener a todas las líneas del terminal VT100.
+El evento OnInitScreen(), es llamado solo una vez al inicio para dimensionar el StringList, de modo que pueda contener a todas las líneas del terminal VT100.
+
+Para limpiar el contenido del terminal, se debe llamar al método ClearTerminal(), que además, reinicia la posición del cursor, poniéndolo en (1,1).
+
+Llamar a ClearTerminal(), no tendrá efecto, sobre el estado de la conexión o del proceso en curso, sino solamente en el contenido del terminal.
+
+# Manejo del Terminal
 
 Los comandos, se envían al proceso con los método Send(), SendLn() o SendFile(). SendLn() es similar a Send(), pero envía adicionalmente un salto de línea al final. El salto de línea es necesario para que el proceso del terminal reconozca que se le ha enviado un comando.
 
@@ -123,6 +129,8 @@ clase. Solo se mantienen las líneas de trabajo del terminal VT100 en el objeto 
 Así se ahorra memoria, porque por lo general, el texto de salida está destinado a ser
 almacenado en algún otro control como un editor de texto o una grilla.
 Es responsabilidad del programador, limitar el tamaño de los datos almacenados.
+
+El evento OnLineCompleted(), se genera cuando se detecta la llegada del caracter Chr(13) que es el salto de línea. Además pasa como parámetro a la línea actual. Este evento puede servir para detectar cuando ha llegado una línea completa.
 
 Los datos de salida que llegan por el terminal, se recuperan por sondeo del flujo de salida. Por defecto, se explora la salida en un intervalo de 50 milisegundos, y usando un "buffer" interno de 2048 bytes.
 

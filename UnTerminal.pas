@@ -1,18 +1,25 @@
 {
-UnTerminal 0.5
+UnTerminal 0.6
 ===============
-Por Tito Hinostroza 25/08/2014
-* Se cambia el nombre de la clase principal de TConexProc a TConsoleProc
-* Se cambia el nombre de DibPanelEstado() a DrawStatePanel()
-* Se pone Create() a VIRTUAL
-* Desaparece "detParcial" y se crea "promptMatch" y el tipo enumerado "TPrompMatch".
-* Se cambia el nombre de prIni,y prFin.
-* Se ponen algunos métodos personalizables a VIRTUAL.
-* Se crea el evento OnFirstReady()
-* Se movió el campo clock, a PROTECTED.
-* Se eliminó "FAnchoTerminal", porque no se usaba.
-* Se pone LeeSalidaProc() como VIRTUAL y se le cambia de nombre.
-* Se cambia el nombre de OnLlegoPrompt a OnGetPrompt
+Por Tito Hinostroza 09/09/2014
+
+* Se agrega el evento OnReadData(), para detectar cuando se recibe una trama de datos.
+* Se crea el evento OnLineCompleted(), para recibir líneas completsa de texto.
+* Se cambia nómbre del evento OnInitLines() a OnInitScreen(), para que ayude más en
+entender su función. Se cambia también el nombred el tipo TEvAddLines.
+* Se quita VIRTUAL a ReadData()
+* Se Cambia nombre de CambiarEstado() a ChangeState().
+* Se adecuan los eventos OnRefreshAll() y OnRefreshLine(), para que se generen de
+acuerdo a la nueva versión de TermVT.
+* Se agrega la propiedad ClearOnOpen para definir si se limpia o no la pantalla al abrir
+la sesión.
+* Se quita la llamada directa a OnInitScreen(), desde Open(). Ahora se llama a través
+de ClearTerminal().
+* Se reordena la posición de algunos eventos.
+* Se cambia de nombre a TEvOnAddLine.
+* Se crea el tipo TEvLinCompleted.
+* Se crea la función ContainsPromptL() y se modifica EsPrompt(), para corregir la detección
+en el caso "prmAtEnd".
 }
 unit UnTerminal;
 
@@ -42,14 +49,15 @@ TPrompMatch = (
 {Evento. Pasa la cantidad de bytes que llegan y la columna y fila final de la matriz Lin[] }
 TEvProcState  = procedure(nDat: integer; pFinal: TPoint) of object;
 TEvGetPrompt  = procedure(prompt: string; pIni: TPoint; HeightScr: integer) of object;
-TEvChkForPrompt = function(lin: string): boolean;
+TEvChkForPrompt = function(const lin: string): boolean of object;
+TEvLinCompleted = procedure(const lin: string) of object;
 TEvRecSysComm = procedure(info: string; pIni: TPoint) of object;
 
-TEvRefreshAll  = procedure(const grilla: TtsGrid; linesAdded: integer) of object;
-TEvAddLines    = procedure(const grilla: TtsGrid; fIni, fFin: integer) of object;
+TEvRefreshAll  = procedure(const grilla: TtsGrid) of object;
+TEvInitScreen  = procedure(const grilla: TtsGrid; fIni, fFin: integer) of object;
 TEvRefreshLine = procedure(const grilla: TtsGrid; fIni, HeightScr: integer) of object;
 TEvRefreshLines= procedure(const grilla: TtsGrid; fIni, fFin, HeightScr: integer) of object;
-TEvOnAddLine   = procedure(HeightScr: integer) of object;
+TEvAddNewLine   = procedure(HeightScr: integer) of object;
 
 { TConsoleProc }
 //Clase que define un proceso
@@ -59,42 +67,49 @@ protected
   lastState : TEstadoCon;  //Estado anterior
   txtState  : string;      //Cadena que describe el estado actual de la conexión
   clock     : TTimer;     //temporizador para leer salida del proceso
-  function ContainsPrompt(const linAct: string; var pos1, pos2: integer): boolean;
+  function ContainsPrompt(const linAct: string; var pos1, pos2: integer;
+    posIni: integer=1): boolean;
+  function ContainsPromptL(const linAct: string; var pos1, pos2: integer
+    ): boolean;
   function EsPrompt(const cad: string): boolean;
   function GetAnchoTerminal: integer;
   procedure SetAnchoTerminal(AValue: integer);
-  function ReadData: boolean; virtual;
+  function ReadData: boolean;
 public
   //datos del proceso
-  progPath  : string;       //ruta del porgrama a lanzar
-  progParam : string;       //parámetros del programa
-  State     : TEstadoCon;   //Estado de la conexión
-  sendCRLF  : boolean;      //envía CRLF en lugar de CR
+  progPath   : string;       //ruta del porgrama a lanzar
+  progParam  : string;       //parámetros del programa
+  State      : TEstadoCon;   //Estado de la conexión
+  sendCRLF   : boolean;      //envía CRLF en lugar de CR
+  ClearOnOpen: boolean;      //Para limpiar pantalla al llamar a Open()
   //manejo del prompt
-  detecPrompt: boolean;     //activa la detección de prompt.
-  promptIni  : string;      //cadena inicial del prompt
-  promptFin  : string;      //cadena final del prompt
-  promptMatch: TPrompMatch; //tipo de coincidencia
-  HayPrompt  : boolean;     //bandera, indica si se detectó el prompt en la última línea
+  detecPrompt: boolean;      //activa la detección de prompt.
+  promptIni  : string;       //cadena inicial del prompt
+  promptFin  : string;       //cadena final del prompt
+  promptMatch: TPrompMatch;  //tipo de coincidencia
+  HayPrompt  : boolean;      //bandera, indica si se detectó el prompt en la última línea
 
-  msjError  : string;       //guarda el mensaje de error
-  term      : TTermVT100;   //Terminal
+  msjError   : string;       //guarda el mensaje de error
+  term       : TTermVT100;   //Terminal
 
   //eventos de cambio de estado
   OnConnecting : TEvProcState;    //indica que se inicia el proceso y trata de conectar
   OnBusy       : TEvProcState;    //indica que está esperando prompt
   OnStopped    : TEvProcState;    //indica que se terminó el proceso
-  OnGetPrompt  : TEvGetPrompt;  //indica que llegó el prompt
+  OnGetPrompt  : TEvGetPrompt;   //indica que llegó el prompt
   OnChangeState: TEvRecSysComm;   //cambia de estado
   //eventos de llegada de datos
-  OnRefreshAll  : TEvRefreshAll;   //Usado para refrescar todo el contenido del terminal
-  OnInitLines   : TEvAddLines;     //indica que se debe agregar líneas de texto
+  OnRefreshAll  : TEvRefreshAll;   //Para refrescar todo el contenido del terminal. No recomendable.
+  OnInitScreen  : TEvInitScreen;   //indica que se debe agregar líneas de texto
   OnRefreshLine : TEvRefreshLine;  //indica que se deben refrescar una línea
-  OnRefreshLines: TEvRefreshLines; //indica que se deben refrescar ese grupo de líneas
-  OnAddLine     : TEvOnAddLine;    //inidca que se debe agregar una línea a la salida
+  OnRefreshLines: TEvRefreshLines; //indica que se deben refrescar un grupo de líneas
+  OnAddLine     : TEvAddNewLine;   //inidca que se debe agregar una línea a la salida
   //eventos adicionales
   OnChkForPrompt: TEvChkForPrompt; //Permite incluir una rutina externa para verificación de prompt.
-  OnFirstReady : TEvGetPrompt;   //La primera vez que de detcta el prompt
+  OnFirstReady  : TEvGetPrompt;    //La primera vez que de detcta el prompt
+  OnReadData    : TEvProcState;    //Cuando llega una trama de datos por el terminal
+  OnLineCompleted:TEvLinCompleted; {Cuando se ha terminado de escribir una línea en el terminal.
+                                   No funcionará si es que se producen saltos en el cursor}
   OnRecSysComm : TEvRecSysComm;   {indica que llegó información del sistema remoto (usuario,
                                   directorio actual, etc) Solo para conex. Telnet}
   procedure Open;   //inicia proceso
@@ -113,10 +128,9 @@ public
   procedure AutoConfigPrompt; virtual;
   //respuesta a eventos de term
   procedure termAddLine;
-  procedure termRefreshLine(fil: integer);
   procedure termRefreshLines(fIni, fFin: integer);
-  procedure termRefreshScreen(linesAdded: integer);
   procedure termRecSysComm(info: string);
+  procedure termLineCompleted(const lineCompleted: string);
   //constructor y destructor
   constructor Create(PanControl: TStatusPanel); virtual;   //Constructor
   destructor Destroy; override;   //Limpia los buffers
@@ -129,7 +143,7 @@ private
   cAnim   : integer;    //contador para animación de ícono de estado
   angA    : integer;    //contador para animación de ícono de estado
   procedure RefresConexion(Sender: TObject);  //Refresca la conexión
-  function CambiarEstado(estado0: TEstadoCon): boolean;  //Cambia el State actual
+  function ChangeState(estado0: TEstadoCon): boolean;  //Cambia el State actual
 end;
 
 implementation
@@ -176,7 +190,7 @@ begin
    result[cc-1] := str;
 end;
 
-function TConsoleProc.CambiarEstado(estado0: TEstadoCon): boolean;
+function TConsoleProc.ChangeState(estado0: TEstadoCon): boolean;
 {Cambia el estado de la conexión  y actualiza un panel con información sobre el estado}
 begin
   lastState := State;  //pasa State actual a anterior
@@ -340,19 +354,19 @@ procedure TConsoleProc.Open;
 //Inicia el proceso y verifica si hubo error al lanzar el proceso.
 begin
   //Inicia la salida de texto, refrescando todo el terminal
-  if OnInitLines<>nil then OnInitLines(term.buf, 1, term.height);
-  if p.Running then p.Terminate(0);  { TODO : ¿No debería mandar CTRL-C y EXIT si la conexión está buena? }
-  // Vamos a lanzar el compilador de FreePascal
+  if ClearOnOpen then ClearTerminal;
+  if p.Running then p.Terminate(0);
+  // Vamos a lanzar el proceso
   p.CommandLine := progPath + ' ' + progParam;
   // Definimos comportamiento de 'TProccess'. Es importante direccionar los errores.
   p.Options := [poUsePipes, poStderrToOutPut, poNoConsole];
   //ejecutamos
-  CambiarEstado(ECO_CONNECTING);
+  ChangeState(ECO_CONNECTING);
   try
     p.Execute;
     if not p.Running then begin
        //Falló al iniciar
-       CambiarEstado(ECO_STOPPED);
+       ChangeState(ECO_STOPPED);
        Exit;
     end;
     //Se inició, y esperamos a que RefresConexion() procese los datos recibidos
@@ -361,7 +375,7 @@ begin
       msjError := MSG_ERR_NO_APP_DEF
     else
       msjError := MSG_FAIL_START_APP + p.CommandLine;
-    CambiarEstado(ECO_ERROR_CON); //genera evento
+    ChangeState(ECO_ERROR_CON); //genera evento
   end;
 end;
 procedure TConsoleProc.Open(progPath0, progParam0: string);
@@ -380,7 +394,7 @@ var c: integer;
 begin
   Result := true;
   //verifica el proceso
-  if p.Running then p.Terminate(0);  { TODO : ¿No debería mandar CTRL-C y EXIT si la conexión está buena? }
+  if p.Running then p.Terminate(0);
   //espera hasta 100 mseg
   c := 0;
   while p.Running and (c<20) do begin
@@ -389,7 +403,7 @@ begin
   end;
   if c>= 20 then exit(false);  //sale con error
   //Pasa de Runnig a Not Running
-  CambiarEstado(ECO_STOPPED);
+  ChangeState(ECO_STOPPED);
   //Puede que quede datos en el "stdout"
   ReadData; //lee lo que queda
 end;
@@ -398,14 +412,15 @@ procedure TConsoleProc.ClearTerminal;
 begin
   term.Clear;   //limpia grilla y reinicia cursor
   //genera evento para reiniciar salida
-  if OnInitLines<>nil then OnInitLines(term.buf, 1, term.height);
+  if OnInitScreen<>nil then OnInitScreen(term.buf, 1, term.height);
 end;
-
-function TConsoleProc.ContainsPrompt(const linAct: string; var pos1, pos2: integer): boolean;
+function TConsoleProc.ContainsPrompt(const linAct: string; var pos1, pos2: integer;
+         posIni: integer = 1): boolean;
 //Verifica si una cadena de texto contiene al prompt, usando los valores actuales
 //de promptIni y promptFin.
 //Si la cadena contiene al prompt, devuelve TRUE y actualiza los valores pos1 y pos2
 //que son los límites inicial y final del prompt, dentro de la cadema.
+//posIni, es la posición inicial (inclusivo) desde donde se buscará.
 //Si la salida del proceso va a ir a un editor con resaltador de sintaxis, esta rutina debe
 //ser similar a la del resaltador para que haya sincronía en lo que se ve. No se separra esta
 //rutina en otra unidad para que esta unidad no tenga dependencias y se pueda usar como
@@ -416,7 +431,7 @@ var
 begin
    Result := FALSE;   //valor por defecto
    lar := length(promptIni);
-   pos1 := pos(promptIni, linAct);
+   pos1 := posEx(promptIni, linAct, posIni);
    if (lar>0) and (pos1>0) then begin
      //puede ser
      if promptFin = '' then begin
@@ -426,13 +441,28 @@ begin
        exit;    //no hace falta explorar más
      end;
      //hay que validar la existencia del fin del prompt
-     pos2 :=pos(promptFin,linAct);
+     pos2 :=posEx(promptFin,linAct, posIni);
      if pos2>0 then begin  //encontró
        pos2 := pos2 + length(promptFin)-1;
        Result := true;
        exit;
      end;
    end;
+end;
+function TConsoleProc.ContainsPromptL(const linAct: string; var pos1, pos2: integer): boolean;
+//Similar a ContainsPrompt(), pero devuelve la última ocurrencia.
+var
+  p1,p2: Integer;
+  hay: Boolean;
+begin
+  hay := ContainsPrompt(linAct, p1, p2, 1);
+  if not hay then exit(false);  //no existe
+  //existe el prompt, busca otro más adelante
+  repeat
+     pos1 := p1; pos2 := p2;   //guarda valores
+     hay := ContainsPrompt(linAct, p1, p2, p1+1);
+  until not hay;
+  exit(true);  //hay valores
 end;
 function TConsoleProc.EsPrompt(const cad: string): boolean;
 //Indica si la línea dada, es el prompt, de acuerdo a los parámetros dados. Esta función
@@ -444,13 +474,24 @@ var
 begin
   if detecPrompt then begin  //si hay detección activa
     Result := false;
-    if not ContainsPrompt(cad, pos1, pos2) then exit;
     //contiene al prompt, pero hay que ver la posición
     case promptMatch of
-    prmExactly : if (pos1 = 1) and (pos2=length(cad)) then exit(true);
-    prmAtBegin : if (pos1 = 1)  then exit(true);
-    prmAtEnd   : if (pos2=length(cad)) then exit(true);
-    prmAtAnyPos: exit(true);
+    prmExactly : begin
+        if not ContainsPrompt(cad, pos1, pos2) then exit;
+        if (pos1 = 1) and (pos2=length(cad)) then exit(true);
+      end;
+    prmAtBegin : begin
+        if not ContainsPrompt(cad, pos1, pos2) then exit;
+        if (pos1 = 1)  then exit(true);
+      end;
+    prmAtEnd   : begin
+        if not ContainsPromptL(cad, pos1, pos2) then exit;
+        if (pos2=length(cad)) then exit(true);
+      end;
+    prmAtAnyPos: begin
+        if not ContainsPrompt(cad, pos1, pos2) then exit;
+        exit(true);
+      end;
     end;
   end else begin
     Result := false;
@@ -486,15 +527,15 @@ begin
       nLeidos += nBytes;
     end;
     {aquí también se puede detetar el prompt, con más posibilidad de detectar los
-    posibles prompt intermedios}
+    posibles "Prompt" intermedios}
     Result := true;    //hay datos
   until not P.Running or (nBytes = 0);
   if not Result then exit;
   {Terminó de leer, aquí detectamos el prompt, porque es casi seguro que llegue
    al final de la trama.
-  Se Detecta el prompt, viendo que la línea actual, sea realmente el prompt. Se probó
+  Ver si la línea actual, es realmente el prompt, es la forma más segura. Se probó
   viendo si la línea actual empezaba con el prompt, pero daba casos (sobretodo en
-  conexiones lentas) en que llegaba una trama con pocos cracteres, de modo que se
+  conexiones lentas) en que llegaba una trama con pocos caracteres, de modo que se
   generaba el evento de llegada de prompt dos veces (tal vez más) en una misma línea}
   if OnChkForPrompt <> nil then begin
     //Hay rutina de verificación externa
@@ -503,6 +544,7 @@ begin
     if EsPrompt(term.buf[term.CurY]) then
       HayPrompt:=true;
   end;
+  if OnReadData<>nil then OnReadData(nLeidos, term.CurXY);
 end;
 procedure TConsoleProc.RefresConexion(Sender: TObject);
 //Refresca el estado de la conexión. Verifica si hay datos de salida del proceso.
@@ -513,9 +555,9 @@ begin
      if ReadData then begin //actualiza "HayPrompt"
         if State in [ECO_READY, ECO_BUSY] then begin
            if HayPrompt then begin
-              CambiarEstado(ECO_READY);
+              ChangeState(ECO_READY);
            end else begin
-              CambiarEstado(ECO_BUSY);
+              ChangeState(ECO_BUSY);
            end;
         end else begin
            //Se está esperando conseguir la conexión (State = ECO_CONNECTING)
@@ -525,12 +567,12 @@ begin
              if OnFirstReady<>nil then OnFirstReady('',term.CurXY, term.height);
 //              State := ECO_READY;  //para que pase a ECO_BUSY
 //              SendLn(COMAN_INIC); //envía comandos iniciales (lanza evento Ocupado)
-             CambiarEstado(ECO_READY);
+             ChangeState(ECO_READY);
            end;
         end;
      end;
   end else begin //terminó
-     CambiarEstado(ECO_STOPPED);
+     ChangeState(ECO_STOPPED);
      ReadData; //lee por si quedaban datos en el buffer
   end;
   //actualiza animación
@@ -551,7 +593,7 @@ begin
   if not p.Running then exit;
   p.Input.Write(txt[1], length(txt));  //pasa el origen de los datos
   //para que se genere un cambio de State aunque el comando sea muy corto
-  if State = ECO_READY then CambiarEstado(ECO_BUSY);
+  if State = ECO_READY then ChangeState(ECO_BUSY);
 end;
 procedure TConsoleProc.SendLn(txt: string);
 {Envía un comando al proceso. Incluye el salto de línea al final de la línea.
@@ -572,7 +614,6 @@ begin
   end;
   Send(txt);
 end;
-
 procedure TConsoleProc.SendFile(name: string);
 //Envía el contendio completo de un archivo
 var lins: TstringList;
@@ -640,21 +681,15 @@ procedure TConsoleProc.termAddLine;
 begin
   if OnAddLine<>nil then OnAddLine(term.height);
 end;
-procedure TConsoleProc.termRefreshScreen(linesAdded: integer);
-//EVento que indica que se debe refrescar la pantalla
-begin
-  if OnRefreshAll<>nil then OnRefreshAll(term.buf, linesAdded);  //evento
-end;
-procedure TConsoleProc.termRefreshLine(fil: integer);
-//Se pide refrescar una línea.
-//"term.height - fil" es la distancia al final de la pantalla VT100
-begin
-  if OnRefreshLine<> nil then OnRefreshLine(term.buf, fil, term.height);
-end;
 procedure TConsoleProc.termRefreshLines(fIni, fFin: integer);
 //Se pide refrescar un rango de líneas
 begin
-  if OnRefreshLines<> nil then OnRefreshLines(term.buf, fIni, fFin, term.height);
+  if OnRefreshAll<>nil then OnRefreshAll(term.buf);  //evento
+  if fIni=fFin then begin  //una sola línea
+    if OnRefreshLine<> nil then OnRefreshLine(term.buf, fIni, term.height);
+  end else begin
+    if OnRefreshLines<> nil then OnRefreshLines(term.buf, fIni, fFin, term.height);
+  end;
 end;
 procedure TConsoleProc.termRecSysComm(info: string);
 //Se ha recibido comando con información del sistema.
@@ -663,7 +698,11 @@ begin
   if OnRecSysComm<>nil then OnRecSysComm(info, term.CurXY);
   //Se puede asumir que llega el prompt pero no siempre funciona
 //  HayPrompt := true;    //marca bandera
-//  CambiarEstado(ECO_READY);  //cambia el State
+//  ChangeState(ECO_READY);  //cambia el State
+end;
+procedure TConsoleProc.termLineCompleted(const lineCompleted: string);
+begin
+  if OnLineCompleted<>nil then OnLineCompleted(lineCompleted);
 end;
 procedure TConsoleProc.AutoConfigPrompt;
 //Configura el prompt actual como el prompt por defecto. Esta configuración no es
@@ -751,7 +790,7 @@ begin
   progPath := '';  //ruta por defecto
   lstTmp := TStringList.Create;   //crea lista temporal
   p := TProcess.Create(nil); //Crea proceso
-  CambiarEstado(ECO_STOPPED);  //State inicial. Genera el primer evento
+  ChangeState(ECO_STOPPED);  //State inicial. Genera el primer evento
   //configura temporizador
   clock := TTimer.Create(nil);
   clock.interval:=50;  {100 es un buen valor, pero para mayor velocidad de recepción, se
@@ -763,12 +802,12 @@ begin
   detecPrompt := true;    //activa detección de prompt por defecto
   promptMatch := prmExactly;   //debe ser exacta
   sendCRLF := false;
+  ClearOnOpen := true;         //por defecto se limpia la pantalla
 
   term := TTermVT100.Create; //terminal
-  term.OnRefreshAll:=@termRefreshScreen;
-  term.OnRefreshLine:=@termRefreshLine;
   term.OnRefreshLines:=@termRefreshLines;
-  term.OnAddLine:=@termAddLine;
+  term.OnScrollLines:=@termAddLine;
+  term.OnLineCompleted:=@termLineCompleted;
   term.OnRecSysComm:=@termRecSysComm; {usaremos este evento para detectar la llegada
                                       del prompt}
 end;

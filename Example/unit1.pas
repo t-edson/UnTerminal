@@ -31,7 +31,7 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure procAddLine(HeightScr: integer);
     procedure procChangeState(State: string; pFinal: TPoint);
-    procedure procInitLines(const grilla: TtsGrid; fIni, fFin: integer);
+    procedure procInitScreen(const grilla: TtsGrid; fIni, fFin: integer);
     procedure procRefreshLine(const grilla: TtsGrid; fIni, HeightScr: integer);
     procedure procRefreshLines(const grilla: TtsGrid; fIni, fFin,
       HeightScr: integer);
@@ -75,7 +75,7 @@ procedure TForm1.FormCreate(Sender: TObject);
 begin
   proc:= TConsoleProc.Create(nil);
   proc.sendCRLF:=true;
-  proc.OnInitLines:=@procInitLines;
+  proc.OnInitScreen :=@procInitScreen;
   proc.OnRefreshLine:=@procRefreshLine;
   proc.OnRefreshLines:=@procRefreshLines;
   proc.OnAddLine:=@procAddLine;
@@ -97,7 +97,7 @@ begin
   Memo1.Lines.Add('');
 end;
 
-procedure TForm1.procInitLines(const grilla: TtsGrid; fIni, fFin: integer);
+procedure TForm1.procInitScreen(const grilla: TtsGrid; fIni, fFin: integer);
 var
   i: Integer;
 begin
