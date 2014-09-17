@@ -806,8 +806,8 @@ begin
 
   term := TTermVT100.Create; //terminal
   term.OnRefreshLines:=@termRefreshLines;
-  term.OnScrollLines:=@termAddLine;
-  term.OnLineCompleted:=@termLineCompleted;
+//  term.OnScrollLines:=@termAddLine;
+//  term.OnLineCompleted:=@termLineCompleted;
   term.OnRecSysComm:=@termRecSysComm; {usaremos este evento para detectar la llegada
                                       del prompt}
 end;
