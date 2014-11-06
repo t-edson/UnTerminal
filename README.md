@@ -88,7 +88,7 @@ Existen diversos grupos de eventos para manejar la salida de datos. Se definen 4
 1. Salida como terminal.
 2. Salida línea por línea.
 3. Salida línea por línea con línea parcial.
-4. Salida línea por línea con línea parccial en prompt.
+4. Salida línea por línea con línea parcial en prompt.
 
 Cada uno de estos métodos tiene sus ventajas y desventajas. Y se debe usar el que se adecue mejor a las necesidades de la aplicación. Así para implementar un cliente de Telnet, se debería usar el método 1 (el más completo), pero para otros procesos bastará usar métodos más simples.
 
@@ -235,18 +235,18 @@ El uso de los eventos OnLineCompleted()-OnReadData() es una forma sencilla de re
 
 En estos casos no se debería implementar este método de captura de salida; pero inclusive si se implementara aquí, podríamos tarbajar bien, mientras no se generen saltos del cursor o borrado de texto. Las secuencias de escape que cambian atributos del texto no afectan en la salida del texto, porque son procesadas (o mejor dicho ignoradas) por TConsoleProc, de modo que los eventos de salida de texto no contienen secuencias ANSI de ningún tipo, en sus parámetros.
 
-Salida línea por línea con línea parcial
-----------------------------------------
+Salida línea por línea con línea parcial en Prompt
+--------------------------------------------------
 
 Como una variación del método anterior, se presenta este método que es muy similar, pero con la diferencia que la detección de líneas parciales se hace solo para cuando se detecte el promtp.
  
 De esta forma, se evita generar muchas sobre-escrituras de líneas, ya que solo se hará en la línea del prompt. Este método es más eficiente cuando se tiene varios paquetes de datos entre prompt y prompt.
 
-Una desventaja de este método es que, es necesario que se tenga configurado el prompt, y este aparezca siempre al final de un bloque de datos, para que se refresque la última línea, no se refrescará de ninguna forma.
+Una desventaja de este método es que, es necesario que se tenga configurado el prompt, y este aparezca siempre al final de un bloque de datos, para que se refresque la última línea, en caso contrario no se refrescará de ninguna forma.
 
 Por lo tanto solo es recomendable para procesos que siempre muestran el prompt. No es recomendable por ejemplo, en un proceso que el algún momento mostrará un mensaje como  "Ingrese un valor: ", esperando una entrada del usuario. Por lo tanto hay que ser cauteloso cuando se use este método de captura de salida. 
 
-La implementación de la captura, es igual al caso anterior, solo que se usa otro para de eventos:
+La implementación de la captura, es igual al caso anterior, solo que se usa otro par de eventos:
 
   OnLineCompleted: TEvLinCompleted; 
   OnLinePrompt: TEvLinCompleted; 
