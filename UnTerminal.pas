@@ -7,6 +7,7 @@ donde se recibió el prompt.
 * Se activa el estado ECO_ERROR_CON, en el ChangeState().
 * Se crea e implementa el evento OnLinePrompt(), para que sirva de complemento al evento
 OnLineCompleted().
+* Se crea el tipo TEvReadData, y se cambia la definición de parámetros de OnReadData().
 }
 unit UnTerminal;
 
@@ -35,6 +36,7 @@ TPrompMatch = (
 );
 {Evento. Pasa la cantidad de bytes que llegan y la columna y fila final de la matriz Lin[] }
 TEvProcState  = procedure(nDat: integer; pFinal: TPoint) of object;
+TEvReadData   = procedure(nDat: integer; const lastLine: string) of object;
 TEvGetPrompt  = procedure(prmLine: string; pIni: TPoint; HeightScr: integer) of object;
 TEvChkForPrompt = function(const lin: string): boolean of object;
 TEvLinCompleted = procedure(const lin: string) of object;
@@ -92,16 +94,16 @@ public
   OnRefreshLine : TEvRefreshLine;  //indica que se deben refrescar una línea
   OnRefreshLines: TEvRefreshLines; //indica que se deben refrescar un grupo de líneas
   OnAddLine     : TEvAddNewLine;   //inidca que se debe agregar una línea a la salida
-  //eventos adicionales
-  OnChkForPrompt: TEvChkForPrompt; //Permite incluir una rutina externa para verificación de prompt.
-  OnFirstReady  : TEvGetPrompt;    //La primera vez que de detcta el prompt
-  OnReadData    : TEvProcState;    //Cuando llega una trama de datos por el terminal
-  OnRecSysComm  : TEvRecSysComm;   {indica que llegó información del sistema remoto (usuario,
-                                  directorio actual, etc) Solo para conex. Telnet}
   //eevntos de llegada de datos, opcionales.
   OnLineCompleted:TEvLinCompleted; {Cuando se ha terminado de escribir una línea en el terminal.
                                    No funcionará si es que se producen saltos en el cursor}
   OnLinePrompt  : TEvLinCompleted;  //Cuando llega la línea del prompt
+  //eventos adicionales
+  OnChkForPrompt: TEvChkForPrompt; //Permite incluir una rutina externa para verificación de prompt.
+  OnFirstReady  : TEvGetPrompt;    //La primera vez que de detcta el prompt
+  OnReadData    : TEvReadData;    //Cuando llega una trama de datos por el terminal
+  OnRecSysComm  : TEvRecSysComm;   {indica que llegó información del sistema remoto (usuario,
+                                  directorio actual, etc) Solo para conex. Telnet}
   procedure Open;   //inicia proceso
   procedure Open(progPath0, progParam0: string); //Inicia conexión
   function Close: boolean;    //Termina la conexión
@@ -114,7 +116,7 @@ public
   //control de barra de estado
   procedure RefPanelEstado;
   procedure DrawStatePanel(c: TCanvas; const Rect: TRect); virtual;
-  function LastLine: string;  //devuelve la última línea
+  function LastLine: string; inline; //devuelve la última línea
   procedure AutoConfigPrompt; virtual;
   //respuesta a eventos de term
   procedure termAddLine;
@@ -139,8 +141,6 @@ end;
 implementation
 //uses FormConfig;   //se necesita acceder a las propiedades de prompt
 const
-  NUM_LIN_ATRAS = 12;  {número de línea a explorar, hacia atrás, para buscar mensajes de
-                        error}
   STA_NAME_CONNEC  = 'Connecting';
   STA_NAME_ERR_CON = 'Connection Error';
   STA_NAME_BUSY    = 'Busy';
@@ -218,7 +218,7 @@ begin
     if OnChangeState<>nil then OnChangeState(txtState, term.CurXY);
   end;
 end;
-function TConsoleProc.LastLine: string;
+function TConsoleProc.LastLine: string; inline;
 //Devuelve la línea donde se encuentra el cursor. Salvo que haya, saltos en el cursor,
 //devolverá siempre los últimos caracteres recibidos.
 begin
@@ -458,7 +458,6 @@ function TConsoleProc.EsPrompt(const cad: string): boolean;
 //Indica si la línea dada, es el prompt, de acuerdo a los parámetros dados. Esta función
 //se pone aquí, porque aquí se tiene fácil acceso a las configuraciones del prompt.
 var
-  n: Integer;
   pos2: integer;
   pos1: integer;
 begin
@@ -529,16 +528,16 @@ begin
   generaba el evento de llegada de prompt dos veces (tal vez más) en una misma línea}
   if OnChkForPrompt <> nil then begin
     //Hay rutina de verificación externa
-    HayPrompt := OnChkForPrompt(term.buf[term.CurY]);
+    HayPrompt := OnChkForPrompt(LastLine);
   end else begin
-    if EsPrompt(term.buf[term.CurY]) then
+    if EsPrompt(LastLine) then
       HayPrompt:=true;
   end;
-  if OnReadData<>nil then OnReadData(nLeidos, term.CurXY);
+  if OnReadData<>nil then OnReadData(nLeidos, LastLine);
   if HayPrompt then begin
     //Genera el evento. Este evento se generará siempre que se detecte el prompt en la
     //última línea sin ver el estado: El cambio de estado es otro procesamiento.
-    if OnLinePrompt<>nil then OnLinePrompt(term.buf[term.CurY]);
+    if OnLinePrompt<>nil then OnLinePrompt(LastLine);
   end;
 end;
 procedure TConsoleProc.RefresConexion(Sender: TObject);

@@ -1,11 +1,12 @@
-{Sample of code implementing a VT100 Terminal, using the unit "UnTerminal".}
+{Sample of code implementing a Terminal, using the unit "UnTerminal".
+ The output is captured using the Line by Line detection}
 unit Unit1;
 {$mode objfpc}{$H+}
 
 interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, ComCtrls, UnTerminal, TermVT;
+  ExtCtrls, ComCtrls, UnTerminal;
 
 type
 
@@ -28,16 +29,13 @@ type
     procedure Button4Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure procAddLine(HeightScr: integer);
     procedure procChangeState(State: string; pFinal: TPoint);
-    procedure procInitScreen(const grilla: TtsGrid; fIni, fFin: integer);
-    procedure procRefreshLine(const grilla: TtsGrid; fIni, HeightScr: integer);
-    procedure procRefreshLines(const grilla: TtsGrid; fIni, fFin,
-      HeightScr: integer);
+    procedure procLineCompleted(const lin: string);
+    procedure procReadData(nDat: integer; const lastLin: string);
   private
     { private declarations }
   public
-    { public declarations }
+    LinPartial: boolean;
   end;
 
 var
@@ -74,10 +72,8 @@ procedure TForm1.FormCreate(Sender: TObject);
 begin
   proc:= TConsoleProc.Create(nil);
   proc.sendCRLF:=true;
-  proc.OnInitScreen :=@procInitScreen;
-  proc.OnRefreshLine:=@procRefreshLine;
-  proc.OnRefreshLines:=@procRefreshLines;
-  proc.OnAddLine:=@procAddLine;
+  proc.OnLineCompleted:=@procLineCompleted;
+  proc.OnReadData:=@procReadData;
   proc.OnChangeState:=@procChangeState;
 end;
 
@@ -91,36 +87,23 @@ begin
   StatusBar1.Panels[0].Text:=State;
 end;
 
-procedure TForm1.procAddLine(HeightScr: integer);
+procedure TForm1.procLineCompleted(const lin: string);
 begin
-  Memo1.Lines.Add('');
+  if LinPartial then begin
+    //Estamos en la línea del prompt
+    Memo1.Lines[Memo1.Lines.Count-1] := lin;  //reemplaza última línea
+    LinPartial := false;
+  end else begin  //caso común
+    Memo1.Lines.Add(lin);
+  end;
 end;
 
-procedure TForm1.procInitScreen(const grilla: TtsGrid; fIni, fFin: integer);
-var
-  i: Integer;
+procedure TForm1.procReadData(nDat: integer; const lastLin: string);
 begin
-  for i:=fIni to fFin do Memo1.Lines.Add(grilla[i]);
+  LinPartial := true;   //marca bandera
+  Memo1.Lines.Add(lastLin);   //agrega la línea que contiene al prompt
 end;
 
-procedure TForm1.procRefreshLine(const grilla: TtsGrid; fIni, HeightScr: integer
-  );
-var
-  yvt: Integer;
-begin
-  yvt := Memo1.Lines.Count-HeightScr-1;
-  Memo1.Lines[yvt+fIni] := grilla[fIni];
-end;
-
-procedure TForm1.procRefreshLines(const grilla: TtsGrid; fIni, fFin,
-  HeightScr: integer);
-var
-  yvt: Integer;
-  f: Integer;
-begin
-  yvt := Memo1.Lines.Count-HeightScr-1;  //calcula fila equivalente a inicio de VT100
-  for f:=fIni to fFin do Memo1.Lines[yvt+ f] := grilla[f];
-end;
 
 end.
 
