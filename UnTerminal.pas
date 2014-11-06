@@ -1,25 +1,12 @@
 {
-UnTerminal 0.6
+UnTerminal 0.7b
 ===============
-Por Tito Hinostroza 09/09/2014
-
-* Se agrega el evento OnReadData(), para detectar cuando se recibe una trama de datos.
-* Se crea el evento OnLineCompleted(), para recibir líneas completsa de texto.
-* Se cambia nómbre del evento OnInitLines() a OnInitScreen(), para que ayude más en
-entender su función. Se cambia también el nombred el tipo TEvAddLines.
-* Se quita VIRTUAL a ReadData()
-* Se Cambia nombre de CambiarEstado() a ChangeState().
-* Se adecuan los eventos OnRefreshAll() y OnRefreshLine(), para que se generen de
-acuerdo a la nueva versión de TermVT.
-* Se agrega la propiedad ClearOnOpen para definir si se limpia o no la pantalla al abrir
-la sesión.
-* Se quita la llamada directa a OnInitScreen(), desde Open(). Ahora se llama a través
-de ClearTerminal().
-* Se reordena la posición de algunos eventos.
-* Se cambia de nombre a TEvOnAddLine.
-* Se crea el tipo TEvLinCompleted.
-* Se crea la función ContainsPromptL() y se modifica EsPrompt(), para corregir la detección
-en el caso "prmAtEnd".
+Por Tito Hinostroza 09/10/2014
+* Se cambia nombre y función del primer parámetro de TEvGetPrompt. Ahora da la línea en
+donde se recibió el prompt.
+* Se activa el estado ECO_ERROR_CON, en el ChangeState().
+* Se crea e implementa el evento OnLinePrompt(), para que sirva de complemento al evento
+OnLineCompleted().
 }
 unit UnTerminal;
 
@@ -48,7 +35,7 @@ TPrompMatch = (
 );
 {Evento. Pasa la cantidad de bytes que llegan y la columna y fila final de la matriz Lin[] }
 TEvProcState  = procedure(nDat: integer; pFinal: TPoint) of object;
-TEvGetPrompt  = procedure(prompt: string; pIni: TPoint; HeightScr: integer) of object;
+TEvGetPrompt  = procedure(prmLine: string; pIni: TPoint; HeightScr: integer) of object;
 TEvChkForPrompt = function(const lin: string): boolean of object;
 TEvLinCompleted = procedure(const lin: string) of object;
 TEvRecSysComm = procedure(info: string; pIni: TPoint) of object;
@@ -64,6 +51,7 @@ TEvAddNewLine   = procedure(HeightScr: integer) of object;
 TConsoleProc = class
 protected
   panel     : TStatusPanel; //referencia a panel para nostrar estado
+  curPanel  : TStatusPanel; //para nostrar posición de cursor de editor de salida
   lastState : TEstadoCon;  //Estado anterior
   txtState  : string;      //Cadena que describe el estado actual de la conexión
   clock     : TTimer;     //temporizador para leer salida del proceso
@@ -108,10 +96,12 @@ public
   OnChkForPrompt: TEvChkForPrompt; //Permite incluir una rutina externa para verificación de prompt.
   OnFirstReady  : TEvGetPrompt;    //La primera vez que de detcta el prompt
   OnReadData    : TEvProcState;    //Cuando llega una trama de datos por el terminal
+  OnRecSysComm  : TEvRecSysComm;   {indica que llegó información del sistema remoto (usuario,
+                                  directorio actual, etc) Solo para conex. Telnet}
+  //eevntos de llegada de datos, opcionales.
   OnLineCompleted:TEvLinCompleted; {Cuando se ha terminado de escribir una línea en el terminal.
                                    No funcionará si es que se producen saltos en el cursor}
-  OnRecSysComm : TEvRecSysComm;   {indica que llegó información del sistema remoto (usuario,
-                                  directorio actual, etc) Solo para conex. Telnet}
+  OnLinePrompt  : TEvLinCompleted;  //Cuando llega la línea del prompt
   procedure Open;   //inicia proceso
   procedure Open(progPath0, progParam0: string); //Inicia conexión
   function Close: boolean;    //Termina la conexión
@@ -204,11 +194,11 @@ begin
         RefPanelEstado;  //fuerza a redibujar panel con el nuevo State
         if OnConnecting<>nil then OnConnecting(0,term.CurXY);
       end;
-{    ECO_ERROR_CON: begin
+    ECO_ERROR_CON: begin
         txtState := STA_NAME_ERR_CON;
         RefPanelEstado;  //fuerza a redibujar panel con el nuevo State
-        if OnErrorConex <> nil then OnErrorConex(nLeidos, pErr);
-      end;}
+//        if OnErrorConex <> nil then OnErrorConex(nLeidos, pErr);
+      end;
     ECO_BUSY: begin
         txtState := STA_NAME_BUSY;
         RefPanelEstado;  //fuerza a redibujar panel con el nuevo State
@@ -217,7 +207,7 @@ begin
     ECO_READY: begin
         txtState := STA_NAME_READY;
         RefPanelEstado;  //fuerza a redibujar panel con el nuevo State
-        if OnGetPrompt <> nil then OnGetPrompt('', term.CurXY, term.height);
+        if OnGetPrompt <> nil then OnGetPrompt(LastLine, term.CurXY, term.height);
       end;
     ECO_STOPPED: begin
         txtState := STA_NAME_STOPPED;
@@ -539,12 +529,17 @@ begin
   generaba el evento de llegada de prompt dos veces (tal vez más) en una misma línea}
   if OnChkForPrompt <> nil then begin
     //Hay rutina de verificación externa
-    HayPrompt:=OnChkForPrompt(term.buf[term.CurY]);
+    HayPrompt := OnChkForPrompt(term.buf[term.CurY]);
   end else begin
     if EsPrompt(term.buf[term.CurY]) then
       HayPrompt:=true;
   end;
   if OnReadData<>nil then OnReadData(nLeidos, term.CurXY);
+  if HayPrompt then begin
+    //Genera el evento. Este evento se generará siempre que se detecte el prompt en la
+    //última línea sin ver el estado: El cambio de estado es otro procesamiento.
+    if OnLinePrompt<>nil then OnLinePrompt(term.buf[term.CurY]);
+  end;
 end;
 procedure TConsoleProc.RefresConexion(Sender: TObject);
 //Refresca el estado de la conexión. Verifica si hay datos de salida del proceso.
@@ -588,10 +583,17 @@ end;
 procedure TConsoleProc.Send(const txt: string);
 {Envía una cadena como como flujo de entrada al proceso.
 Es importante agregar el caracter #13#10 al final. De otra forma no se leerá el "stdin"}
+var
+  n: Integer;
 begin
   if p = NIL then exit;
   if not p.Running then exit;
+n := length(txt);
+debugln(IntToStr(n));
+  p.PipeBufferSize:=20000;
+  p.Input.Size:=20000;
   p.Input.Write(txt[1], length(txt));  //pasa el origen de los datos
+
   //para que se genere un cambio de State aunque el comando sea muy corto
   if State = ECO_READY then ChangeState(ECO_BUSY);
 end;
@@ -806,8 +808,8 @@ begin
 
   term := TTermVT100.Create; //terminal
   term.OnRefreshLines:=@termRefreshLines;
-//  term.OnScrollLines:=@termAddLine;
-//  term.OnLineCompleted:=@termLineCompleted;
+  term.OnScrollLines:=@termAddLine;
+  term.OnLineCompleted:=@termLineCompleted;
   term.OnRecSysComm:=@termRecSysComm; {usaremos este evento para detectar la llegada
                                       del prompt}
 end;

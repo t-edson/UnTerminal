@@ -1,4 +1,4 @@
-UnTerminal 0.6
+UnTerminal 0.7b
 ===============
 
 Unidad en Lazarus, para el control de procesos tipo consola, con detección de "prompt".
@@ -9,12 +9,12 @@ Los procesos a controlar con esta unidad deben cumplir las siguientes condicione
 
 1. Que se puedan lanzar como procesos de tipo consola.
 2. Que su entrada y salida estándar sea de tipo texto.
-3. Que tengan prompt. (No necesario si no importa detectar el prompt)
-4. Que acepten comandos.
+3. Que tengan prompt. (No necesario si no importa detectar el prompt).
+4. Que acepten comandos (Si se quiere enviar información al proceso).
 
-Los procesos que se pueden controlar con esta unidad son diversos, como clientes de telnet, ftp, o el mismo shell del sistema operativo, como se muestar en el ejemplo incluido.
+Los procesos que se pueden controlar con esta unidad son diversos, como clientes de telnet, ftp, o el mismo shell del sistema operativo, como se muestra en el ejemplo incluido.
 
-En esta versión no permite leer el flujo de salida de errores.
+En la versión actual no se puede leer el flujo de salida de errores. Solo se controlan los flujos de enetrada y de salida normales.
 
 Para conectarse mediante un proceso, se debe crear una instancia de TConsoleProc, y seguir la secuencia de conexión:
 
@@ -37,8 +37,17 @@ usará). En este caso se debe manejar el evento OnDrawPanel() de la Barra de est
  end;
 ```
 
- La conexión se maneja por estados. Una secuencia típica de estados al iniciar una
- conexión exitosa es:
+La conexión se maneja por estados. Los estados posibles del proceso son:
+
+* ECO_STOPPED .- El Proceso no se ha iniciado iniciado. Esta condición se da siempre después de crer la conexión, o después de cerrrar una conexión abierta. Puede que haya datos pendientes en el "buffer".
+* ECO_CONNECTING .- Esta condición se da después de abrir al conexión con el proceso indicado. Termina cuando se detecta el prompt. SI no se detecta el prompt, (sea que no llegue, o no se haya configruado correctamente), el proceso se mantendrá siempre en este estado.
+* ECO_ERROR_CON .- Se produce cuando después de intentar abrir el proceso, se produce un error, por ejemplo, cuando se referencia a un archivo que no existe.
+* ECO_READY .- Este proceso se inicia cuando se detecta el prompt (si es que se usa la detección de prompt). Indica que el proceso está listo para aceptar comandos. Se mantiene en este estado hasta que se reciba algún comando para enviar al proceso.
+* ECO_BUSY .- Este estado se inicia después de mandar un comando, cuando el proceso se encontraba en estado ECO_READY. Se mantiene en este estado, hasta que se detecte el prompt y se pase nuevamente al estado ECO_READY.
+
+El proceso solo puede estar en uno de estos estados a la vez. La transición entre estados tiene una secuencia lógica, pero puede tener cambios.
+
+Una secuencia típica de estados al iniciar una conexión exitosa es:
  
  ECO_STOPPED -> ECO_CONNECTING -> ECO_READY
 
@@ -105,7 +114,78 @@ Para limpiar el contenido del terminal, se debe llamar al método ClearTerminal(
 
 Llamar a ClearTerminal(), no tendrá efecto, sobre el estado de la conexión o del proceso en curso, sino solamente en el contenido del terminal.
 
-# Manejo del Terminal
+## Formas Alternativas de mostrar la salida
+
+El método descrito en la sección anterior (usando los eventos OnInitScreen(), OnRefreshLine(), OnRefreshLines() y OnAddLine()), es por así decirlo la manera formal de controlar la salida. Este método considera que el proceso puede manejar secuencias ANSI de escape para el control de la pantalla del terminal virtual, realizando movimiento del cursor o borrado de secciones de la pantalla. 
+
+Sin embargo, este método puede resultar complicado al momento de manejar la posición del cursor o cuando se quiere conmutar desde un editor de salida a otro.
+
+Si nuestro proceso a controlar, no manejará secuencias ANSI, sino que simplemente enviará texto plano sin comandos de borrado o manejo de cursor, entonces podemos usar formas alternativas más simples de mostrar la información ene pantalla.
+
+El método más simple sería usar solamente el evento OnLineCompleted():
+
+OnLineCompleted:TEvLinCompleted;
+
+Que se genera cada vez que se detecta un salto de línea en la llegada de datos. Así podríamos usar Este método para ir agregando línes a nuestro editor de salida, sin preocuparnos en iniciar la pantalla, o de la información anterior que pueda contener.
+
+Nuestro código sería algo como esto:
+
+```
+  proc.OnLineCompleted:=@procOnLineCompleted;
+...
+
+procedure TForm1.procOnLineCompleted(const lin: string);
+begin
+  SynEdit1.Lines.Add(lin);
+end;
+```
+
+Esta forma minimalista funcionará bien, mostrando los datos de llegada, pero con un aparente retraso, porque para que se muestre una línea, esta debe estar completa. De modo que cuando llegue el prompt, esta línea no se mostrará en el editor (a pesar de que el proceso pasará al estado ECO_READY). 
+
+Para que se muestre la última línea completa, es necesario que se reciba el salto de línea correspondiente. Así podemos decir que en este modo de trabajo, no se mostrará nunca la última línea recibida (a menos claro, que el último caracter recibido sea el salto de línea y consideremos que la última línea es la anterior al salto).
+
+Para salvar este inconveniente, se puede usar la conbinación de eventos:
+
+  OnLineCompleted: TEvLinCompleted; 
+  OnLinePrompt: TEvLinCompleted; 
+ 	
+El evento OnLinePrompt(), se genera cuando se recibe la línea que contiene al prompt, aunque no esté completa. Entonces, lo que deberíamos hacer es completar reemplazar esta línea, si es que luego recibimos el evento OnLineCompleted().
+
+El código de trabajo, se parecerá a este:
+
+```
+var LinPrompt: boolean = false;
+
+  sqlCon.OnLineCompleted:=@sqlConLineCompleted;
+  sqlCon.OnLinePrompt:=@sqlConLinePrompt;
+...
+  
+procedure TForm1.sqlConLineCompleted(const lin: string);
+begin
+  if LinPrompt then begin
+    //Estamos en la línea del prompt
+    SynEdit1.Lines[SynEdit1.Lines.Count-1] := lin;  //reemplaza última línea
+    LinPrompt := false;
+  end else begin  //caso común
+    SynEdit1.Lines.Add(lin);
+  end;
+end;
+
+procedure TForm1.sqlConLinePrompt(const lin: string);
+begin
+  LinPrompt := true;   //marca bandera
+  SynEdit1.Lines.Add(lin);   //agrega la línea que contiene al prompt
+end;
+```
+Este método de trabajo funcionará bastante bien y es simple, pero podría darse el caso (poco común), en el que se reciban dos veces seguidas el evento OnLinePrompt(), haciendo que se genere una línea adicional en el editor. Este caso se podría dar cuando, se genera una línea larga que llegue en un solo bloque y que contiene el prompt, o en conexiones muy lentas.
+
+Aunque el efecto de este caso extremo no es crítico (solo generará una línea adicional con el prompt en el editor de salida), se podría incluir una rutina de protección adicional que verificara que el evento OnLinePrompt(), se está produciendo dos veces seguidas y de ser así, evitar agregar una línea más.
+
+El uso de los eventos OnLineCompleted()-OnLinePrompt() es una forma sencilla de recbir los datos "linea por línea", pero no debemos olvidar que solo debe aplicarse a procesos con salida simple de texto sin saltos de línea o borrado de texto. La mayoría de procesos caen en esta categoría (como clientes de FTP o hasta el mismo shell de DOS), pero procesos como un cliente de Telnet o SSH, usan secuencias de escape que pueden requerir posicionar el cursor para sobreescribir bloques. 
+
+En estos casos no se debería implementar este método de captura de salida; pero inclusive si se implementara aquí, podríamos tarbajar bien, mientras no se generen saltos del cursor o borrado de texto. Las secuencias de escape que cambian atributos del texto no afectan en la salida del texto, porque son procesadas (o mejor dicho ignoradas) por TConsoleProc, de modo que los eventos de salida de texto no contienen secuencias ANSI de ningún tipo, en sus parámetros.
+
+## Manejo del Terminal
 
 Los comandos, se envían al proceso con los método Send(), SendLn() o SendFile(). SendLn() es similar a Send(), pero envía adicionalmente un salto de línea al final. El salto de línea es necesario para que el proceso del terminal reconozca que se le ha enviado un comando.
 
@@ -139,6 +219,8 @@ Para cambiar la frecuencia de sondeo de la salida del proceso, se debe cambiar e
 # Detección del Prompt
 
 La detección del Prompt se hace explorando las cadenas de texto que van llegando del proceso, para ver si coinciden con los parámetros de la detección. Esta forma puede no ser muy confiable si el Prompt del proceso es muy cambiante.
+
+Los datos de salida que van generando el proceso, se reciben en bloques que pueden tener tamaño variable, pero que no exceden a UBLOCK_SIZE. La búsqueda del prompt se hace siempre en la última línea de cada bloque de datos que se recibe del proceso (En el método ReadData()). Si el proceso debe enviar demasiada información, esta suele llegar en varios bloques, pero siempre se espera que el prompt (al menos la parte final), llegue en el último bloque recibido. No se explora cada línea recibida, para disminuir la carga de procesamiento.
 
 Para configurar la detección del Prompt se debe poner la propiedad 'detecPrompt' en TRUE y fijar valores para 'promptIni' y 'promptFin'. Estas cadevas determinan la parte inicial y final del prompt.
 
