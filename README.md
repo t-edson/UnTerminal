@@ -33,7 +33,7 @@ usará). En este caso se debe manejar el evento OnDrawPanel() de la Barra de est
  ...
  procedure Form1.SBDrawPanel(StatusBar:TStatusBar; Panel:TStatusPanel; const Rect:TRect);
  begin
-  if panel.Index = 1 then q.DrawStatePanel(StatusBar.Canvas, Rect);
+  if panel.Index = 1 then p.DrawStatePanel(StatusBar.Canvas, Rect);
  end;
 ```
 
@@ -85,7 +85,7 @@ El objetivo del uso de un terminal es poder mostrar la salida de forma cómoda p
 
 Existen diversos grupos de eventos para manejar la salida de datos. Se definen 4 métodos para el control de la salida de datos:
 
-1. Salida como terminal.
+1. Salida como terminal VT100.
 2. Salida línea por línea.
 3. Salida línea por línea con línea parcial.
 4. Salida línea por línea con línea parcial en prompt.
@@ -96,8 +96,8 @@ Podría implementarse un método adicional que consiste en interceptar directame
 
 Implementar la salida de datos, no afecta en la detección del prompt. Las rutinas de detección trabajan directamente sobre los bloques de datos que van llegando del proceso, sin necesidad de que estos datos se muestren.
 
-Salida como Terminal
---------------------
+Salida como Terminal VT100
+--------------------------
 
 Este es el método más completo de manejo de salida del terminal. Permite reconocer las secuencias de escape que controlan el cursor, o manipulan el texto del terminal. 
 
@@ -347,7 +347,7 @@ Tambíen se puede usar la función de configuración automática del prompt, que
 
 'AutoConfigPrompt' lee la última línea asumiendo que es el pprompt y fija valores automáticamente para 'promptIni' y 'promptFin'.
 
-Se puede usar también una rutina personalizada para la detección deñ prompt. Esta se debe enganchar al evento OnChkForPrompt() que tiene la forma:
+Se puede usar también una rutina personalizada para la detección del prompt. Esta se debe enganchar al evento OnChkForPrompt() que tiene la forma:
 
 function(lin: string): boolean;
 
