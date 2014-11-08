@@ -1,5 +1,5 @@
 {
-UnTerminal 0.7b
+UnTerminal 0.7
 ===============
 Por Tito Hinostroza 09/10/2014
 * Se cambia nombre y función del primer parámetro de TEvGetPrompt. Ahora da la línea en
@@ -8,6 +8,23 @@ donde se recibió el prompt.
 * Se crea e implementa el evento OnLinePrompt(), para que sirva de complemento al evento
 OnLineCompleted().
 * Se crea el tipo TEvReadData, y se cambia la definición de parámetros de OnReadData().
+* Se mejora la documentación.
+
+Description
+===========
+Lazarus Unit for controlling console process, with Prompt Detection.
+
+This unit can process the standard input/output of console process, and support ANSI
+escape sequences, using a virtual VT100 terminal. It includes
+routines for detect the prompt, and consequently the states of BUSY and READY.
+
+In the current version it's not supported to read the standard error stream.
+
+For to start a process it's necessary to create an object TConsoleProc:
+
+  p := TConsoleProc.Create(StatusBar1.Panels[1]);
+  ...
+  p.Free;
 }
 unit UnTerminal;
 

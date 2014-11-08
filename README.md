@@ -1,5 +1,5 @@
-UnTerminal 0.7b
-===============
+UnTerminal 0.7
+==============
 
 Unidad en Lazarus, para el control de procesos tipo consola, con detección de "prompt".
 
@@ -21,7 +21,7 @@ Para conectarse mediante un proceso, se debe crear una instancia de TConsoleProc
 ```
   p := TConsoleProc.Create(StatusBar1.Panels[1]);  //Crea conexión
   ...
-  p.Free.
+  p.Free;
 ```
 
 Opcionalmente se le puede pasar la referencia a un panel de una barra de estado, para
