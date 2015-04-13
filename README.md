@@ -306,15 +306,14 @@ Haciendo que se pase de un estado de libre a ocupado de forma automática, y pud
 
 Los datos de salida que van llegando del proceso, no se guardan completamente en la
 clase. Solo se mantienen las líneas de trabajo del terminal VT100 en el objeto "term".
-Así se ahorra memoria, porque por lo general, el texto de salida está destinado a ser
-almacenado en algún otro control como un editor de texto o una grilla.
+Así se ahorra memoria, porque por lo general, el texto de salida está destinado a ser almacenado en algún otro control como un editor de texto o una grilla.
 Es responsabilidad del programador, limitar el tamaño de los datos almacenados.
 
 El evento OnLineCompleted(), se genera cuando se detecta la llegada del caracter Chr(13) que es el salto de línea. Además pasa como parámetro a la línea actual. Este evento puede servir para detectar cuando ha llegado una línea completa.
 
-Los datos de salida que llegan por el terminal, se recuperan por sondeo del flujo de salida. Por defecto, se explora la salida en un intervalo de 50 milisegundos, y usando un "buffer" interno de 2048 bytes.
+Los datos de salida que llegan por el terminal, se recuperan por sondeo del flujo de salida. Por defecto, se explora la salida en intervalos de 50 milisegundos(20 veces por segundo), y usando un "buffer" interno de 2048 bytes.
 
-Para cambiar la frecuencia de sondeo de la salida del proceso, se debe cambiar el valor de la propiedad 'clock.interval'. Pero no es recomendable.
+Para cambiar el periodo de sondeo de la salida del proceso, se debe cambiar el valor de la propiedad 'clock.interval' (en milisegundos). Se puede trabajar bien con periodos de 100 mseg o aún más, si la cantidad de información es baja. Pero no es recomendable bajar a menos de 50 mseg, porque se genera una carga adicional de CPU (aún cuando no llegen datos). Solo se debería bajar este periodo cuando se requiera procesar los datos de llegada, de forma inmediata.
 
 # Detección del Prompt
 
