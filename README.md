@@ -321,7 +321,7 @@ La detección del Prompt se hace explorando las cadenas de texto que van llegand
 
 Los datos de salida que van generando el proceso, se reciben en bloques que pueden tener tamaño variable, pero que no exceden a UBLOCK_SIZE. La búsqueda del prompt se hace siempre en la última línea de cada bloque de datos que se recibe del proceso (En el método ReadData()). Si el proceso debe enviar demasiada información, esta suele llegar en varios bloques, pero siempre se espera que el prompt (al menos la parte final), llegue en el último bloque recibido. No se explora cada línea recibida, para disminuir la carga de procesamiento.
 
-Para configurar la detección del Prompt se debe poner la propiedad 'detecPrompt' en TRUE y fijar valores para 'promptIni' y 'promptFin'. Estas cadevas determinan la parte inicial y final del prompt.
+Para configurar la detección del Prompt se debe poner la propiedad 'detecPrompt' en TRUE y fijar valores para 'promptIni' y 'promptFin'. Estas cadenas determinan la parte inicial y final del prompt.
 
 Si el prompt es fijo y no cambia, se puede poner su valor directamente en 'promptIni' y se deja 'promptFin' vacío. Pero si el prompt es variable, se puede poner la parte inicial en 'promptIni' y la parte final en 'promptFin', pero eligiendo valores que no den lugar a confusión con líneas de datos.
 
@@ -334,9 +334,13 @@ Se puede configurar: promptIni='[' y promptFin = '$ '. Los espacios son también
 Por defecto se espera que el prompt encontrado sea exactamnente igual a la última línea del texto que llega por el terminal. Pero existen opciones adicionales. El tipo de coincidencia se puede configurar en la variable 'promptMatch'. Puede tener los siguientes valores:
 
    prmExactly,   //prompt es la línea entera
+   
    prmAtBegin,   //prompt aparece al inicio de la línea
+   
    prmAtEnd,     //prompt aparece al final de la línea
+   
    prmAtAnyPos   //prompt aparece en cualquier parte de la línea
+  
 
 Por defecto, 'promptMatch' está en 'prmExactly'.
 
