@@ -333,14 +333,10 @@ Se puede configurar: promptIni='[' y promptFin = '$ '. Los espacios son también
 
 Por defecto se espera que el prompt encontrado sea exactamnente igual a la última línea del texto que llega por el terminal. Pero existen opciones adicionales. El tipo de coincidencia se puede configurar en la variable 'promptMatch'. Puede tener los siguientes valores:
 
-   prmExactly,   //prompt es la línea entera
-   
-   prmAtBegin,   //prompt aparece al inicio de la línea
-   
-   prmAtEnd,     //prompt aparece al final de la línea
-   
-   prmAtAnyPos   //prompt aparece en cualquier parte de la línea
-  
+*   prmExactly,   //prompt es la línea entera
+*   prmAtBegin,   //prompt aparece al inicio de la línea
+*   prmAtEnd,     //prompt aparece al final de la línea
+*   prmAtAnyPos   //prompt aparece en cualquier parte de la línea
 
 Por defecto, 'promptMatch' está en 'prmExactly'.
 
