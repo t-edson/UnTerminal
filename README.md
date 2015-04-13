@@ -14,7 +14,7 @@ Los procesos a controlar con esta unidad deben cumplir las siguientes condicione
 
 Los procesos que se pueden controlar con esta unidad son diversos, como clientes de telnet, ftp, o el mismo shell del sistema operativo, como se muestra en el ejemplo incluido.
 
-En la versión actual no se puede leer el flujo de salida de errores. Solo se controlan los flujos de enetrada y de salida normales.
+En la versión actual no se puede leer el flujo de salida de errores. Solo se controlan los flujos de entrada y de salida normales.
 
 Para conectarse mediante un proceso, se debe crear una instancia de TConsoleProc, y seguir la secuencia de conexión:
 
@@ -24,9 +24,7 @@ Para conectarse mediante un proceso, se debe crear una instancia de TConsoleProc
   p.Free;
 ```
 
-Opcionalmente se le puede pasar la referencia a un panel de una barra de estado, para
-que se muestren íconos que indiquen el estado de la conexión (poner en NIL si no se
-usará). En este caso se debe manejar el evento OnDrawPanel() de la Barra de estado:
+Opcionalmente se le puede pasar la referencia a un panel de una barra de estado, para que se muestren íconos que indiquen el estado de la conexión (poner en NIL si no se usará). En este caso se debe manejar el evento OnDrawPanel() de la Barra de estado:
 
 ```
  StatusBar1.OnDrawPanel:=@SBDrawPanel;
@@ -39,8 +37,8 @@ usará). En este caso se debe manejar el evento OnDrawPanel() de la Barra de est
 
 La conexión se maneja por estados. Los estados posibles del proceso son:
 
-* ECO_STOPPED .- El Proceso no se ha iniciado iniciado. Esta condición se da siempre después de crer la conexión, o después de cerrrar una conexión abierta. Puede que haya datos pendientes en el "buffer".
-* ECO_CONNECTING .- Esta condición se da después de abrir al conexión con el proceso indicado. Termina cuando se detecta el prompt. SI no se detecta el prompt, (sea que no llegue, o no se haya configruado correctamente), el proceso se mantendrá siempre en este estado.
+* ECO_STOPPED .- El Proceso no se ha iniciado. Esta condición se da siempre después de crer la conexión, o después de cerrrar una conexión abierta. Puede que haya datos pendientes en el "buffer".
+* ECO_CONNECTING .- Esta condición se da después de abrir la conexión con el proceso indicado. Termina cuando se detecta el prompt. Si no se detecta el prompt, (sea que no llegue, o no se haya configruado correctamente), el proceso se mantendrá siempre en este estado.
 * ECO_ERROR_CON .- Se produce cuando después de intentar abrir el proceso, se produce un error, por ejemplo, cuando se referencia a un archivo que no existe.
 * ECO_READY .- Este proceso se inicia cuando se detecta el prompt (si es que se usa la detección de prompt). Indica que el proceso está listo para aceptar comandos. Se mantiene en este estado hasta que se reciba algún comando para enviar al proceso.
 * ECO_BUSY .- Este estado se inicia después de mandar un comando, cuando el proceso se encontraba en estado ECO_READY. Se mantiene en este estado, hasta que se detecte el prompt y se pase nuevamente al estado ECO_READY.
