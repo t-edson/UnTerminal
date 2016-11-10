@@ -73,7 +73,6 @@ end;
 procedure TForm1.FormCreate(Sender: TObject);
 begin
   proc:= TConsoleProc.Create(nil);
-  proc.sendCRLF:=true;
   proc.OnInitScreen :=@procInitScreen;
   proc.OnRefreshLine:=@procRefreshLine;
   proc.OnRefreshLines:=@procRefreshLines;
