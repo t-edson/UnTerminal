@@ -1,18 +1,8 @@
 {
-UnTerminal 0.8
+UnTerminal 0.9b
 ===============
-Por Tito Hinostroza 06/12/2015
-* Se cambia de nombre de RefresConexion() a RefreshConnection().
-* Se hace público RefreshConnection(), para refrescar manualmente cuando no se tiene
-disponible el "Timer".
-* Se crea el método RunInLoop() para ejecutar sin Timer.
-* Se hace público el proceso "p", para permitir configurar de formas distintas al
-proceso al lanzarlo.
-* Se cambia de nombre a la versión de Open() sin parámetros a Start().
-* Se simplifica Start(), quitándole las opciones de configuración del proceso, antes
-de lanzarlo, de modo que facilite la configuración personalizada del proceso, en lugar
-de usar las definidas en Open().
-* Se eliminan los campos: progPath y progParam.
+Por Tito Hinostroza 07/11/2016
+* Se reemplaza sendCRLF por LineDelim, y pasa a ser un enumerado.
 
 
 Description
@@ -56,6 +46,14 @@ TPrompMatch = (
    prmAtEnd,     //prompt aparece al final de la línea
    prmAtAnyPos   //prompt aparece en cualquier parte de la línea
 );
+
+//Tipo de delimitador de línea
+TTypLineDel = (
+   TTL_CRLF,
+   TTL_CR,
+   TTL_LF
+);
+
 {Evento. Pasa la cantidad de bytes que llegan y la columna y fila final de la matriz Lin[] }
 TEvProcState  = procedure(nDat: integer; pFinal: TPoint) of object;
 TEvReadData   = procedure(nDat: integer; const lastLine: string) of object;
@@ -90,7 +88,7 @@ protected
 public
   //datos del proceso
   State      : TEstadoCon;   //Estado de la conexión
-  sendCRLF   : boolean;      //envía CRLF en lugar de CR
+  LineDelim  : TTypLineDel;  //Tipo de delimitaodr de línea
   ClearOnOpen: boolean;      //Para limpiar pantalla al llamar a Open()
   p          : TProcess;     //el proceso a manejar
   //manejo del prompt
@@ -638,12 +636,11 @@ begin
   txt := StringReplace(txt,#10,#1,[rfReplaceAll]);
   //incluye el salto final
   txt += #1;
-  //aplica el salto configurado
-  if sendCRLF then begin
-    txt := StringReplace(txt,#1,#13#10,[rfReplaceAll]); //envía CRLF
-  end else begin
-    txt := StringReplace(txt,#1,#10,[rfReplaceAll]);  //envía LF
-//  txt := StringReplace(txt,#1,#13,[rfReplaceAll]);  //envía CR
+  //Aplica el salto configurado
+  case LineDelim of
+  TTL_CRLF: txt := StringReplace(txt,#1,#13#10,[rfReplaceAll]); //envía CRLF
+  TTL_CR  : txt := StringReplace(txt,#1,#13,[rfReplaceAll]);  //envía CR
+  TTL_LF  : txt := StringReplace(txt,#1,#10,[rfReplaceAll]);  //envía LF
   end;
   Send(txt);
 end;
@@ -892,7 +889,7 @@ begin
     panel.Style:=psOwnerDraw;  //configura panel para dibujarse por evento
   detecPrompt := true;    //activa detección de prompt por defecto
   promptMatch := prmExactly;   //debe ser exacta
-  sendCRLF := false;
+  LineDelim := TTL_CRLF;
   ClearOnOpen := true;         //por defecto se limpia la pantalla
 
   term := TTermVT100.Create; //terminal

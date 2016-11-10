@@ -1,4 +1,4 @@
-UnTerminal 0.8
+UnTerminal 0.9b
 ==============
 
 Unidad en Lazarus, para el control de procesos tipo consola, con detección de "prompt".
