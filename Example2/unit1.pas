@@ -71,7 +71,7 @@ end;
 procedure TForm1.FormCreate(Sender: TObject);
 begin
   proc:= TConsoleProc.Create(nil);
-  proc.sendCRLF:=true;
+  proc.LineDelim := TTL_CRLF;
   proc.OnLineCompleted:=@procLineCompleted;
   proc.OnReadData:=@procReadData;
   proc.OnChangeState:=@procChangeState;
