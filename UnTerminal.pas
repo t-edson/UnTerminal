@@ -1,14 +1,19 @@
 {
-UnTerminal 0.7
+UnTerminal 0.8
 ===============
-Por Tito Hinostroza 09/10/2014
-* Se cambia nombre y función del primer parámetro de TEvGetPrompt. Ahora da la línea en
-donde se recibió el prompt.
-* Se activa el estado ECO_ERROR_CON, en el ChangeState().
-* Se crea e implementa el evento OnLinePrompt(), para que sirva de complemento al evento
-OnLineCompleted().
-* Se crea el tipo TEvReadData, y se cambia la definición de parámetros de OnReadData().
-* Se mejora la documentación.
+Por Tito Hinostroza 06/12/2015
+* Se cambia de nombre de RefresConexion() a RefreshConnection().
+* Se hace público RefreshConnection(), para refrescar manualmente cuando no se tiene
+disponible el "Timer".
+* Se crea el método RunInLoop() para ejecutar sin Timer.
+* Se hace público el proceso "p", para permitir configurar de formas distintas al
+proceso al lanzarlo.
+* Se cambia de nombre a la versión de Open() sin parámetros a Start().
+* Se simplifica Start(), quitándole las opciones de configuración del proceso, antes
+de lanzarlo, de modo que facilite la configuración personalizada del proceso, en lugar
+de usar las definidas en Open().
+* Se eliminan los campos: progPath y progParam.
+
 
 Description
 ===========
@@ -84,11 +89,10 @@ protected
   function ReadData: boolean;
 public
   //datos del proceso
-  progPath   : string;       //ruta del porgrama a lanzar
-  progParam  : string;       //parámetros del programa
   State      : TEstadoCon;   //Estado de la conexión
   sendCRLF   : boolean;      //envía CRLF en lugar de CR
   ClearOnOpen: boolean;      //Para limpiar pantalla al llamar a Open()
+  p          : TProcess;     //el proceso a manejar
   //manejo del prompt
   detecPrompt: boolean;      //activa la detección de prompt.
   promptIni  : string;       //cadena inicial del prompt
@@ -121,9 +125,14 @@ public
   OnReadData    : TEvReadData;    //Cuando llega una trama de datos por el terminal
   OnRecSysComm  : TEvRecSysComm;   {indica que llegó información del sistema remoto (usuario,
                                   directorio actual, etc) Solo para conex. Telnet}
-  procedure Open;   //inicia proceso
-  procedure Open(progPath0, progParam0: string); //Inicia conexión
+  procedure Start;   //inicia proceso
+  procedure Open(progPath, progParam: string); //Inicia conexión
   function Close: boolean;    //Termina la conexión
+  procedure RefreshConnection(Sender: TObject);  //Refresca la conexión
+  function RunInLoop(TimeoutSegs: integer=-1): boolean;
+  function RunInLoop(progPath, progParam: string; TimeoutSegs: integer = -1): boolean;
+  function RunInLoop(progPath, progParam: string; TimeoutSegs: integer;
+    var progOut: TStringList): boolean;
   procedure ClearTerminal;
   property TerminalWidth: integer read GetAnchoTerminal write SetAnchoTerminal;
   procedure Send(const txt: string);
@@ -144,15 +153,15 @@ public
   constructor Create(PanControl: TStatusPanel); virtual;   //Constructor
   destructor Destroy; override;   //Limpia los buffers
 private
-  p       : TProcess;   //el proceso a manejar
   bolsa   : array[0..UBLOCK_SIZE] of char;  //buffer para almacenar salidas(tiene un caracter más)
   nLeidos : LongInt;
   lstTmp  : TStringList;
 
   cAnim   : integer;    //contador para animación de ícono de estado
   angA    : integer;    //contador para animación de ícono de estado
-  procedure RefresConexion(Sender: TObject);  //Refresca la conexión
+  LoopList: TStringList;   //lista de salida para cuando se usa RunInLoop().
   function ChangeState(estado0: TEstadoCon): boolean;  //Cambia el State actual
+  procedure ProcLoop(const lin: string);
 end;
 
 implementation
@@ -166,6 +175,7 @@ const
   MSG_ERR_NO_APP_DEF = 'No Application specified for connection.';
   MSG_FAIL_START_APP = 'Fail Starting Application: ';
   MSG_NO_PRMP_FOUND  = 'Prompt Not Found for to configure in Terminal.';
+  MSG_ERR_TIMEOUT = 'Timeout in process.';
 {
   STA_NAME_CONNEC  = 'Conectando';
   STA_NAME_ERR_CON = 'Error en conexión';
@@ -357,18 +367,12 @@ begin
   term.width := AValue;
 end;
 
-procedure TConsoleProc.Open;
-//Inicia el proceso y verifica si hubo error al lanzar el proceso.
+procedure TConsoleProc.Start;
+{Inicia el proceso y verifica si hubo error al lanzar el proceso. Los parámetros del
+proceso, deben haberse fijado antes en el proceso.}
 begin
-  //Inicia la salida de texto, refrescando todo el terminal
-  if ClearOnOpen then ClearTerminal;
-  if p.Running then p.Terminate(0);
-  // Vamos a lanzar el proceso
-  p.CommandLine := progPath + ' ' + progParam;
-  // Definimos comportamiento de 'TProccess'. Es importante direccionar los errores.
-  p.Options := [poUsePipes, poStderrToOutPut, poNoConsole];
   //ejecutamos
-  ChangeState(ECO_CONNECTING);
+  ChangeState(ECO_CONNECTING);  //importante para
   try
     p.Execute;
     if not p.Running then begin
@@ -376,24 +380,32 @@ begin
        ChangeState(ECO_STOPPED);
        Exit;
     end;
-    //Se inició, y esperamos a que RefresConexion() procese los datos recibidos
+    //Se inició, y esperamos a que RefreshConnection() procese los datos recibidos
   except
-    if trim(p.CommandLine) = '' then
+    if trim(p.Executable) = '' then
       msjError := MSG_ERR_NO_APP_DEF
     else
-      msjError := MSG_FAIL_START_APP + p.CommandLine;
+      msjError := MSG_FAIL_START_APP + p.Executable;
     ChangeState(ECO_ERROR_CON); //genera evento
   end;
 end;
-procedure TConsoleProc.Open(progPath0, progParam0: string);
-//Similar a Open, pero permite indicar programa
+procedure TConsoleProc.Open(progPath, progParam: string);
+//Rutina principal para iniciar un programa.
 begin
   term.Clear;
-
-  progPath := progPath0;
-  progParam := progParam0;  //guarda cadena de conexión
   if trim(progPath) = '' then exit;  //protección
-  Open;   //puede dar error
+  //Inicia la salida de texto, refrescando todo el terminal
+  if ClearOnOpen then ClearTerminal;
+  if p.Running then p.Terminate(0);
+  // Vamos a lanzar el proceso
+  p.CommandLine := progPath + ' ' + progParam;
+//  p.Executable := progPath;
+//  p.Parameters.Clear;
+//  p.Parameters.Add(progParam);
+
+  // Definimos comportamiento de 'TProccess'. Es importante direccionar los errores.
+  p.Options := [poUsePipes, poStderrToOutPut, poNoConsole];
+  Start;   //puede dar error
 end;
 function TConsoleProc.Close: boolean;
 //Cierra la conexión actual. Si hay error devuelve False.
@@ -557,8 +569,11 @@ begin
     if OnLinePrompt<>nil then OnLinePrompt(LastLine);
   end;
 end;
-procedure TConsoleProc.RefresConexion(Sender: TObject);
-//Refresca el estado de la conexión. Verifica si hay datos de salida del proceso.
+procedure TConsoleProc.RefreshConnection(Sender: TObject);
+{Refresca el estado de la conexión. Verifica si hay datos de salida del proceso, para
+generar los eventos respectivos que capturan la salida. Es llamado autométicamente
+por un timer, cuando está disponible, pero en aplicaciones de consola, puede que sea
+necesario llamarlo manualmente, o usar el método }
 begin
   if State = ECO_STOPPED then Exit;  //No está corriendo el proceso.
   if p.Running then begin
@@ -692,7 +707,66 @@ begin
     end;
   end;
 end;
-
+procedure TConsoleProc.ProcLoop(const lin: string);
+{método interno de respuesta al evento OnLineCompleted(), para usarse con RunInLoop()}
+begin
+  if LoopList<>nil then begin
+    LoopList.Add(lin);   //solo acumula
+  end;
+end;
+function TConsoleProc.RunInLoop(TimeoutSegs: integer = -1): boolean;
+{Ejecuta el proceso en un lazo, hasta que la aplicación termine o hasta que se
+cumpla el número de segundos indciados en "TimeoutSegs". Si se detiene por desborde
+devuelve TRUE, y un mensaje de error en "msjError".
+Se usa cuando no se puede usar el temporizador, como en las aplicaciones de consola.}
+var
+  tic_proc: Integer;
+  max_tics: integer;
+begin
+  if TimeoutSegs=-1 then begin
+    //ejecuta lazo hasta que termine el proceso
+    repeat
+      RefreshConnection(nil);
+      sleep(50);
+    until State = ECO_STOPPED;
+    exit(false);
+  end else begin
+    //ejecuta hasta que termine el proceso o haya desborde de tiempo
+    tic_proc := 0;
+    max_tics := TimeoutSegs * 20;
+    repeat
+      RefreshConnection(nil);  //necesario porque no funciona el Timer del LCL
+      sleep(50);
+      inc(tic_proc);
+    until (State = ECO_STOPPED) or (tic_proc > max_tics);
+    if tic_proc > max_tics then begin
+      msjError := MSG_ERR_TIMEOUT;
+      exit(true);
+    end;
+    exit(false);
+  end;
+end;
+function TConsoleProc.RunInLoop(progPath, progParam: string;
+                                TimeoutSegs: integer = -1): boolean;
+{Versión de RunInLoop(), que ejecuta el proceso y el lazo de espera, a la vez.
+}
+begin
+  Open(progPath, progParam);
+  if msjError<>'' then exit;
+  Result := RunInLoop(TimeoutSegs);
+  //puede generar error
+end;
+function TConsoleProc.RunInLoop(progPath, progParam: string;
+  TimeoutSegs: integer; var progOut: TStringList): boolean;
+{Versión de RunInLoop(), que ejecuta captura la salida del proceso en un TString
+}
+begin
+  OnLineCompleted:=@ProcLoop;
+  LoopList := progOut;   //aquí se acumulará la salida
+  RunInLoop(progPath, progParam, TimeoutSegs);
+  OnLineCompleted:=nil;
+  //puede generar error
+end;
 //respuesta a eventos de term
 procedure TConsoleProc.termAddLine;
 //Se pide agregar líneas a la salida
@@ -805,7 +879,6 @@ end;
 constructor TConsoleProc.Create(PanControl: TStatusPanel);
 //Constructor
 begin
-  progPath := '';  //ruta por defecto
   lstTmp := TStringList.Create;   //crea lista temporal
   p := TProcess.Create(nil); //Crea proceso
   ChangeState(ECO_STOPPED);  //State inicial. Genera el primer evento
@@ -813,7 +886,7 @@ begin
   clock := TTimer.Create(nil);
   clock.interval:=50;  {100 es un buen valor, pero para mayor velocidad de recepción, se
                         puede usar 50 milisegundos}
-  clock.OnTimer := @RefresConexion;
+  clock.OnTimer := @RefreshConnection;
   panel := PanControl;  //inicia referencia a panel
   if panel<> nil then
     panel.Style:=psOwnerDraw;  //configura panel para dibujarse por evento

@@ -1,4 +1,4 @@
-UnTerminal 0.7
+UnTerminal 0.8
 ==============
 
 Unidad en Lazarus, para el control de procesos tipo consola, con detección de "prompt".
@@ -156,13 +156,13 @@ El método descrito en la sección anterior (usando los eventos OnInitScreen(), 
 
 Sin embargo, este método puede resultar complicado al momento de manejar la posición del cursor o cuando se quiere conmutar desde un editor de salida a otro.
 
-Si nuestro proceso a controlar, no manejará secuencias ANSI, sino que simplemente enviará texto plano sin comandos de borrado o manejo de cursor, entonces podemos usar formas alternativas más simples de mostrar la información ene pantalla.
+Si nuestro proceso a controlar, no manejará secuencias ANSI, sino que simplemente enviará texto plano sin comandos de borrado o manejo de cursor, entonces podemos usar formas alternativas más simples de mostrar la información en pantalla.
 
 El método más simple sería usar solamente el evento OnLineCompleted():
 
 OnLineCompleted:TEvLinCompleted;
 
-Que se genera cada vez que se detecta un salto de línea en la llegada de datos. Así podríamos usar Este método para ir agregando línes a nuestro editor de salida, sin preocuparnos en iniciar la pantalla, o de la información anterior que pueda contener.
+Que se genera cada vez que se detecta un salto de línea en la llegada de datos. Así podríamos usar este método para ir agregando líneas a nuestro editor de salida, sin preocuparnos en iniciar la pantalla, o de la información anterior que pueda contener.
 
 Nuestro código sería algo como esto:
 
@@ -342,7 +342,7 @@ Por defecto, 'promptMatch' está en 'prmExactly'.
 
 Tambíen se puede usar la función de configuración automática del prompt, que se ejecuta llamando al método AutoConfigPrompt. Pero este método debe ser llamado cuando se tenga el Pprompt visible en la última línea del terminal.
 
-'AutoConfigPrompt' lee la última línea asumiendo que es el pprompt y fija valores automáticamente para 'promptIni' y 'promptFin'.
+'AutoConfigPrompt' lee la última línea asumiendo que es el prompt y fija valores automáticamente para 'promptIni' y 'promptFin'.
 
 Se puede usar también una rutina personalizada para la detección del prompt. Esta se debe enganchar al evento OnChkForPrompt() que tiene la forma:
 
