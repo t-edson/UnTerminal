@@ -1,0 +1,10 @@
+object CfgFrame: TCfgFrame
+  Left = 0
+  Height = 240
+  Top = 0
+  Width = 320
+  LCLVersion = '1.6.0.4'
+  TabOrder = 0
+  DesignLeft = 257
+  DesignTop = 201
+end
