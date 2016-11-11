@@ -1,0 +1,72 @@
+object Config: TConfig
+  Left = 234
+  Height = 289
+  Top = 154
+  Width = 465
+  BorderStyle = bsDialog
+  Caption = 'Configuración'
+  ClientHeight = 289
+  ClientWidth = 465
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnShow = FormShow
+  LCLVersion = '1.6.0.4'
+  object bitAceptar: TBitBtn
+    Left = 168
+    Height = 30
+    Top = 248
+    Width = 75
+    Default = True
+    DefaultCaption = True
+    Kind = bkOK
+    OnClick = bitAceptarClick
+    TabOrder = 0
+  end
+  object bitCancel: TBitBtn
+    Left = 368
+    Height = 30
+    Top = 248
+    Width = 75
+    Cancel = True
+    DefaultCaption = True
+    Kind = bkCancel
+    ModalResult = 2
+    OnClick = bitCancelClick
+    TabOrder = 1
+  end
+  object bitAplicar: TBitBtn
+    Left = 264
+    Height = 30
+    Top = 248
+    Width = 80
+    Caption = 'A&plicar'
+    Kind = bkYes
+    OnClick = bitAplicarClick
+    TabOrder = 2
+  end
+  object TreeView1: TTreeView
+    Left = 8
+    Height = 272
+    Top = 8
+    Width = 136
+    DefaultItemHeight = 16
+    Font.CharSet = ANSI_CHARSET
+    Font.Height = -12
+    Font.Name = 'Calibri'
+    Font.Pitch = fpVariable
+    Font.Quality = fqDraft
+    ParentFont = False
+    ReadOnly = True
+    TabOrder = 3
+    OnClick = TreeView1Click
+    Options = [tvoAutoItemHeight, tvoHideSelection, tvoKeepCollapsedNodes, tvoReadOnly, tvoShowButtons, tvoShowLines, tvoShowRoot, tvoToolTips, tvoThemedDraw]
+    Items.Data = {
+      F9FFFFFF020004000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000000000
+      00000009000000436F6E657869C3B36EFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+      0000000000000000000F00000044657465632E64652050726F6D7074FFFFFFFF
+      FFFFFFFFFFFFFFFFFFFFFFFF000000000000000000080000005465726D696E61
+      6CFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000000000000000060000004D61
+      63726F73
+    }
+  end
+end
