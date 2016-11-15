@@ -701,7 +701,7 @@ object frmPrincipal: TfrmPrincipal
       TabOrder = 1
       OnEnter = edTermEnter
       Gutter.Color = clWhite
-      Gutter.Width = 29
+      Gutter.Width = 0
       Gutter.MouseActions = <>
       RightGutter.Width = 0
       RightGutter.MouseActions = <>
@@ -1160,6 +1160,7 @@ object frmPrincipal: TfrmPrincipal
         end
         object SynGutterLineNumber1: TSynGutterLineNumber
           Width = 17
+          Visible = False
           MouseActions = <>
           MarkupInfo.Background = clBlack
           MarkupInfo.Foreground = clNone
@@ -1177,11 +1178,13 @@ object frmPrincipal: TfrmPrincipal
         end
         object SynGutterSeparator1: TSynGutterSeparator
           Width = 2
+          Visible = False
           MouseActions = <>
           MarkupInfo.Background = clWhite
           MarkupInfo.Foreground = clGray
         end
         object SynGutterCodeFolding1: TSynGutterCodeFolding
+          Visible = False
           MouseActions = <>
           MarkupInfo.Background = clNone
           MarkupInfo.Foreground = clGray
@@ -3625,7 +3628,6 @@ object frmPrincipal: TfrmPrincipal
   end
   object PopupMenu1: TPopupMenu
     Images = ImageList1
-    OnPopup = PopupMenu1Popup
     left = 104
     top = 248
     object MenuItem48: TMenuItem
@@ -3825,15 +3827,6 @@ object frmPrincipal: TfrmPrincipal
         FF002063982A206398FF206398FF206398FF206398FF206398FF206398F0FFFF
         FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00
       }
-    end
-    object mnPopLeng: TMenuItem
-      Caption = '&Lenguaje'
-    end
-    object MenuItem54: TMenuItem
-      Caption = '-'
-    end
-    object MenuItem55: TMenuItem
-      Action = acEdSelecAll
     end
   end
   object PopupMenu2: TPopupMenu

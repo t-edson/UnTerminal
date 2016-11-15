@@ -70,8 +70,6 @@ type
     MenuItem51: TMenuItem;
     MenuItem52: TMenuItem;
     MenuItem53: TMenuItem;
-    MenuItem54: TMenuItem;
-    MenuItem55: TMenuItem;
     MenuItem56: TMenuItem;
     MenuItem57: TMenuItem;
     MenuItem58: TMenuItem;
@@ -98,7 +96,6 @@ type
     MenuItem84: TMenuItem;
     MenuItem85: TMenuItem;
     MenuItem86: TMenuItem;
-    mnPopLeng: TMenuItem;
     mnLenguajes: TMenuItem;
     MenuItem47: TMenuItem;
     mnAbrMacro: TMenuItem;
@@ -183,7 +180,6 @@ type
     procedure itemAbreMacro(Sender: TObject);
     procedure mnAbrMacroClick(Sender: TObject);
     procedure mnEjecMacroClick(Sender: TObject);
-    procedure PopupMenu1Popup(Sender: TObject);
     procedure procChangeState(info: string; pFinal: TPoint);
     procedure procInitScreen(const grilla: TtsGrid; fIni, fFin: integer);
     procedure procAddLine(HeightScr: integer);
@@ -195,13 +191,11 @@ type
     procedure Timer1Timer(Sender: TObject);
   private
     hlTerm    : TResaltTerm;
-    CtrlPulsado: boolean;
     ePCom     : TSynFacilEditor;  //ventana de editor
     eTerm     : TSynFacilEditor;  //ventana de terminal
     LlegoPrompt: boolean;   //bandera
     parpadPan0: boolean;   //para activar el parpadeo del panel0
     ticComRec : integer;   //contador para comando recurrente
-    procedure AbrirSesion(ses: string);
     function BuscaPromptAba: integer;
     function BuscaPromptArr: integer;
     procedure DistribuirPantalla;
@@ -212,7 +206,6 @@ type
     proc   : TConsoleProc; //referencia al proceso actual
     ejecMac: boolean;   //indica que está ejecutando una macro
     ejecCom: boolean;   //indica que está ejecutando un comando (editor remoto, exp. remoto ...)
-    SesAct : string;    //nombre de la sesión actual
     procedure InicConect;
     procedure ActualizarInfoPanel0;
     function ConexDisponible: boolean;
@@ -229,7 +222,6 @@ implementation
 
 procedure TfrmPrincipal.FormCreate(Sender: TObject);
 begin
-  SesAct := '';
   ticComRec  := 0;
 
   ejecMac := false;
@@ -252,7 +244,6 @@ begin
   ePCom.PanLangName := StatusBar1.Panels[4];  //lenguaje
 
   ePCom.NewFile;   //para actualizar estado
-  ePCom.InitMenuLanguages(mnLenguajes, rutLenguajes);
   ePCom.LoadSyntaxFromPath;
 
   //inicia proceso
@@ -346,12 +337,7 @@ procedure TfrmPrincipal.ePComFileOpened;
 begin
   ePCom.LoadSyntaxFromPath;  //para que busque el archivo apropiado
   //actualiza encabezado
-  if SesAct = '' then begin
-    Caption := NOM_PROG + dic(' - Archivo: ')+ ePCom.NomArc;
-  end else begin
-    Caption := NOM_PROG + ' - Sesión: ' + ExtractFileName(SesAct) +
-                          dic(' - Archivo: ')+ ePCom.NomArc;
-  end;
+  Caption := 'TTerm';
 end;
 procedure TfrmPrincipal.edPComSpecialLineMarkup(Sender: TObject; Line: integer;
   var Special: boolean; Markup: TSynSelectedColor);
@@ -363,11 +349,6 @@ begin
   ChangeEditorState;  //para actualizar los menús
   eTerm.PanCursorPos := nil; //para forzar a actualiazr la posición del cursor
   eTerm.PanCursorPos := StatusBar1.Panels[2];
-end;
-procedure TfrmPrincipal.PopupMenu1Popup(Sender: TObject);  //abre menú contextual
-//prepara el menú de "lenguajes", en el menú contextual
-begin
-  CopiarMemu(mnLenguajes, mnPopLeng);
 end;
 
 /////////////// Funciones para manejo de macros///////////////
@@ -382,34 +363,6 @@ begin
   LeeArchEnMenu(rutMacros + DirectorySeparator +'*.ttm', mnAbrMacro,@itemAbreMacro);
 end;
 
-procedure TfrmPrincipal.AbrirSesion(ses: string);
-//Abre una sesión
-var
-  arc0: String;
-  rpta: Byte;
-begin
-  if proc.state <> ECO_STOPPED then begin
-    rpta := MsgYesNoCancel('Hay una conexión abierta. ¿Cerrarla?');
-    if rpta in [2,3] then begin  //cancelar
-      exit;    //sale
-    end;
-    if rpta = 1 then begin  //detener primero
-      AcTerDesconExecute(nil);
-    end;
-  end;
-  SesAct := ses;  //actualiza sesión actual
-  arc0 := SesAct;    //el archivo de sesión debe incluir el contendio además de la ocnfig.
-  config.LeerArchivoIni(arc0);  //carga configuración
-  //actualiza menús
-  mnEjecMacroClick(self);
-  mnAbrMacroClick(self);
-
-  DistribuirPantalla; //ubica componentes
-  //muestra dirección IP actual
-  ActualizarInfoPanel0;
-
-  ePComFileOpened; //para actualizar barra de título
-end;
 procedure TfrmPrincipal.itemEjecMacro(Sender: TObject);
 //Ejecuta la macro elegida
 begin
@@ -670,15 +623,8 @@ procedure TfrmPrincipal.edPComKeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 begin
   if Shift = [ssCtrl] then begin  //Ctrl pulsado
-    if not CtrlPulsado then begin   //primera pulsación
-      CtrlPulsado := true;    //activa
-{      if edPCom.LineHighlightColor.Background<>clNone then begin
-        coLFonLin := edPCom.LineHighlightColor.Background;  //guarda color actual
-        //calcula color aclarado
-        GetRGBIntValues(coLFonLin,r,g,b);
-        coLClaro := RGB(min(r+70,255), min(g+70,255), min(b+70,255));
-        edPCom.LineHighlightColor.Background:=colClaro;  //cambia
-      end;}
+    if key = VK_RETURN then begin //envía línea actual
+       Key := 0;
     end;
   end;
 end;
@@ -699,12 +645,7 @@ begin
         //es una línea normal
         edPCom.ExecuteCommand(ecDown, '',nil);  //baja cursor
       end;
-    end;
-  end else begin  //Ctrl soltado
-    if CtrlPulsado then begin   //primera soltada
-      CtrlPulsado := false;    //activa
-//      if edPCom.LineHighlightColor.Background<>clNone then
-//        edPCom.LineHighlightColor.Background:=coLFonLin;  //restaura
+      Key := 0;  //para que ya no lo procese
     end;
   end;
 end;

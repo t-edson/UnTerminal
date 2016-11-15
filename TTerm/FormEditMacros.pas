@@ -7,7 +7,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, SynEdit, Forms, Controls, Graphics, Dialogs, LCLProc,
   Menus, ComCtrls, ActnList, StdActns,
-  MisUtils, SynFacilUtils, UnTerminal, Parser, Globales, FrameCfgConex;
+  MisUtils, SynFacilUtils, Parser, Globales;
 
 type
 
@@ -136,7 +136,7 @@ begin
 //  edit.PanForEndLin := StatusBar1.Panels[2];  //panel para el tipo de delimitador de línea
   edit.PanCodifFile := StatusBar1.Panels[3];  //panel para la codificación del archivo
   edit.NewFile;
-  edit.LoadSyntaxFromFile(rutLenguajes+DirectorySeparator+'Terminal Macro.xml');
+  edit.LoadSyntaxFromFile(rutApp+DirectorySeparator+'Terminal Macro.xml');
   edit.InitMenuRecents(mnRecientes, nil);  //inicia el menú "Recientes"
   InicEditorC1(ed);     //inicia editor con configuraciones por defecto
 end;
@@ -179,7 +179,7 @@ end;
 procedure TfrmEditMacros.acArcNuevoExecute(Sender: TObject);
 begin
   edit.NewFile;
-  ed.Lines[0] := dic('// Macro de ejemplo para ')+NOM_PROG;
+  ed.Lines[0] := dic('// Macro de ejemplo');
   ed.Lines.Add(dic('// Creada: ') + DateTimeToStr(Now) );
   ed.Lines.Add('disconnect    '+dic('//Desconecta por si había alguna conexión'));
   ed.Lines.Add('connect "192.168.1.1"    '+dic('//Conecta a nueva dirección'));
