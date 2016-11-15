@@ -46,7 +46,7 @@ inherited fraConexion: TfraConexion
     Left = 24
     Height = 48
     Top = 136
-    Width = 265
+    Width = 260
     AutoFill = True
     Caption = 'Line Delimiter (To Recieve)'
     ChildSizing.LeftRightSpacing = 6
@@ -55,14 +55,15 @@ inherited fraConexion: TfraConexion
     ChildSizing.ShrinkHorizontal = crsScaleChilds
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
-    ChildSizing.ControlsPerLine = 3
+    ChildSizing.ControlsPerLine = 4
     ClientHeight = 28
-    ClientWidth = 261
-    Columns = 3
+    ClientWidth = 256
+    Columns = 4
     Items.Strings = (
       'CRLF'
       'CR'
       'LF'
+      'CR or LF'
     )
     TabOrder = 2
   end

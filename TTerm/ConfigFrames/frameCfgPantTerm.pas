@@ -13,11 +13,9 @@ type
   TfraPantTerm = class(TCfgFrame)
     chkCurSigPrmpt: TCheckBox;
     chkInterDirec: TCheckBox;
-    ComboBox1: TComboBox;
-    ComboBox2: TComboBox;
+    edTpoMax: TEdit;
     Label1: TLabel;
     Label2: TLabel;
-    Label3: TLabel;
     Label4: TLabel;
     txtMaxColT: TEdit;
     txtMaxLinT: TEdit;
@@ -29,8 +27,8 @@ type
     maxColTer : integer;  //máxima cantidad de columnas que se muestran en el terminal
     interDirec: boolean;  //interceptar teclas direccionales
     curSigPrm : boolean;  //cursor sigue a prompt
+    TpoMax    : integer;
     procedure Iniciar(secINI0: string; p0: TConsoleProc ); //Inicia el frame
-    procedure SetLanguage(lang: string);
   end;
 
 implementation
@@ -50,35 +48,13 @@ begin
   Asoc_Int_TEdit(@maxColTer ,txtMaxColT,'maxColTer',1000, 80,10000);
   Asoc_Bol_TChkBox(@interDirec,chkInterDirec,'interDirec',true);
   Asoc_Bol_TChkBox(@curSigPrm,chkCurSigPrmpt,'curSigPrm',true);
+  Asoc_Int_TEdit(@TpoMax, edTpoMax, 'TpoMax', 10, 1, 180);
 end;
 
 procedure TfraPantTerm.ConfigTerminal;
 //Configura el terminal de acuerdo a las variables de estado
 begin
   p.TerminalWidth:=maxColTer;
-end;
-
-procedure TfraPantTerm.SetLanguage(lang: string);
-//Rutina de traducción
-begin
-  case lowerCase(lang) of
-  'es': begin
-      Label2.Caption:='&Tipo de terminal:';
-      Label3.Caption:='Ta&maño de terminal:';
-      Label4.Caption:='Máximo Núm. Columnas:';
-      Label1.Caption:='Máximo Núm. Líneas :';
-      chkInterDirec.Caption:='&Interceptar teclas direccionales';
-      chkCurSigPrmpt.Caption:='Cursor de Terminal &sigue a Prompt';
-    end;
-  'en': begin
-      Label2.Caption:='Terminal &Type:';
-      Label3.Caption:='Terminal &Size:';
-      Label4.Caption:='Max Columns:';
-      Label1.Caption:='Max Lines :';
-      chkInterDirec.Caption:='&Intercepts directionals keys';
-      chkCurSigPrmpt.Caption:='Terminal Cursor &follows Prompt';
-    end;
-  end;
 end;
 
 end.
