@@ -44,11 +44,17 @@ type
   Ttslin = string;   //línea
   TtsGrid = array[1..MAX_HEIGHT_TS] of Ttslin;
 
-  //tipo de secuencia de escape actual
+  //Tipo de secuencia de escape actual
   tEscSequence = (EscSeqOpenBrk,  //secuencia ESC[
                   EscSeqCharSet,  //secuencias ESC( ESC) ESC* ESC+
                   EscSeqCommand   //secuencia ESC]
                      );
+  //Define el comportamiento de los caracteres de salto de línea (CR y LF)
+  TBehaveChar = (tbcNone,     //sin función, se ignora
+                 tbcNewLine,  //es caracter de salto
+                 tbcNormal    //es caracter normal (CR o LF)
+                );
+
   //tipos para eventos
   TtsRefreshLines = procedure(fIni, fFin: integer) of object;
   TtsScrollLines  = procedure of object;
@@ -71,15 +77,15 @@ type
     //eventos adicionales
     OnRecSysComm   : TtsRecSysComm;    //Se ha recibido imformación del sistema
     OnLineCompleted: TtsLineCompleted; //Indica que se acaba de agregar una línea completa
-    ProcEscape     : boolean;          //Indica si se debe reconocer las secuencias de escape
 //    OnChangeCursor: TCursorEvent;   //Cambia posición del cursor
+    ProcEscape     : boolean;         //Indica si se debe reconocer las secuencias de escape
+    bhvCR          : TBehaveChar;     //Comportamiento de CR
+    bhvLF          : TBehaveChar;     //Comportamiento de LF
     procedure SetCurX(AValue: integer);
     procedure SetCurY(AValue: integer);
     procedure SetCursor(x, y: integer);
     procedure Clear;   //Limpia pantalla actual
-    function AddData(const cad: PChar): string;
-    constructor Create;     //Constructor
-    destructor Destroy; override;   //Limpia los buffers
+    procedure AddData(const cad: PChar);
   private
     fCurX, fCurY : integer;  //posición del cursor
     SavecurX, SavecurY: integer;  //para guardar el cursor
@@ -108,6 +114,9 @@ type
     function CurXY: TPoint;
     property CurX: integer read FCurX;
     property CurY: integer read FCurY;
+  public
+    constructor Create;     //Constructor
+    destructor Destroy; override;   //Limpia los buffers
   end;
 
 implementation
@@ -278,14 +287,26 @@ begin
     SetCurX(CurX+1);
   end;
 end;
-function TTermVT100.AddData(const cad: PChar): string;
-//Recibe una serie de caracteres y los agrega a la pantalla en la posición actual
-//del terminal hasta encontrar el caracter #0. Reconoce algunas secuencias de escape,
-//pero ignora las que cambian la apriencia del texto.
+procedure TTermVT100.AddData(const cad: PChar);
+{Recibe una serie de caracteres y los agrega a la pantalla en la posición actual
+del terminal hasta encontrar el caracter #0. Reconoce algunas secuencias de escape,
+pero ignora las que cambian la apariencia del texto.}
+  procedure SaltoDeLinea;
+  {Ejeucta un salto de línea}
+  var
+    tmp: Ttslin;
+  begin
+    if OnLineCompleted <> nil then begin  //hay evento que generar
+      tmp := buf[CurY];     //guarda cadena que se termina de editar
+      CursorRet;
+      OnLineCompleted(tmp); //dispara evento
+    end else begin  //sin evento
+      CursorRet;
+    end;
+  end;
 var
   i: Integer;
   largo: Integer;
-  tmp: String;
 begin
   i:=0;
   Busy := true;
@@ -297,34 +318,36 @@ begin
       escapeProcess(cad[i]);
       inc(i);
     end else begin
-      if cad[i]=#13 then begin  //salto de línea
-        if OnLineCompleted <> nil then begin  //hay evento que generar
-          tmp := buf[CurY];     //guarda cadena que se termina de editar
-          CursorRet;
-          OnLineCompleted(tmp); //dispara evento
-        end else begin  //sin evento
-          CursorRet;
+      case cad[i] of
+      #13:begin   //salto de línea CR
+        case bhvCR of
+        tbcNone   : ;  //sin acción
+        tbcNewLine: SaltoDeLinea;
+        tbcNormal : SetCurX(1);   //retorno de carro
         end;
         inc(i);
-//        if CurY>maxModified then maxModified := CurY;
-        continue;
-      end else if cad[i]=#10 then begin  //salto
+      end;
+      #10: begin  //salto LF
+        case bhvLF of
+        tbcNone   : ;  //sin acción
+        tbcNewLine: SaltoDeLinea;
+        tbcNormal : SetCurY(curY + 1);   //siguiente línea
+        end;
         inc(i);   //ignora
-        continue;
-      end else if cad[i]=#7 then begin  //bell
+      end;
+      #7: begin  //bell
         beep;
         inc(i);
-        continue;
-      end else if cad[i]=#8 then begin  //bacspace
-//debugln('#8');
+      end;
+      #8: begin  //bacspace
         eraseBack;
         inc(i);
-        continue;
-      end else if cad[i]=#27 then begin  //secuencia de escape
+      end;
+      #27: begin  //secuencia de escape
         InEscape := true;
         inc(i);   //pasa al siguiente caracter
-        continue;
-      end else begin  //caracter normal
+      end;
+      else  //caracter normal
 //debugln(cad[i]);
         //procesa
         if CurX = length(buf[CurY])+1 then begin
@@ -564,11 +587,11 @@ Debugln('Secuencia no soportada ESC-g');
   'r': begin    //scrolling region
 Debugln('Secuencia no soportada ESC-r');
        end;
-  's': begin        //Save cursor position
+  's': begin    //Save cursor position
         SavecurX := CurX;
         SavecurY := CurY;
        end;
-  'u': begin        //restore cursor position
+  'u': begin    //restore cursor position
         SetCursor(SavecurX, SavecurY);
        end;
   Else
@@ -589,6 +612,8 @@ begin
   height := 25;
   Clear;  //limpia
   ProcEscape := true; //para que reconozca (no necesariamente ejecutarlas) las secuencias de escape
+  bhvCR      := tbcNewLine;
+  bhvLF      := tbcNone;
   //inicia bandera de ocupado
   Busy := false;
 end;

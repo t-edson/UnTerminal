@@ -2,8 +2,15 @@
 UnTerminal 0.9b
 ===============
 Por Tito Hinostroza 07/11/2016
-* Se reemplaza sendCRLF por LineDelim, y pasa a ser un enumerado.
-
+* Se reemplaza el campo sendCRLF por LineDelimSend, y pasa a ser un enumerado, para tener
+más flexibilidad en la configuración.
+* Se crea la propiedad LineDelimRecv, para poder configurar el tipo de delimitador de
+línea que se debe reconocer al recibir.
+* Se modifica TTermVT100.AddData, para que reconozca los diversos delimitadores de
+línea.
+* Se crean los campos TTermVT100.bhvLF y TTermVT100.bhvCR, para poder flexibilizar el
+comportamiento de los caracteres de salto ed línea.
+* Se reordenan los campos en la declaración de TConsoleProc.
 
 Description
 ===========
@@ -47,11 +54,18 @@ TPrompMatch = (
    prmAtAnyPos   //prompt aparece en cualquier parte de la línea
 );
 
-//Tipo de delimitador de línea
-TTypLineDel = (
-   TTL_CRLF,
-   TTL_CR,
-   TTL_LF
+//Tipo de delimitador de línea a enviar
+TUtLineDelSend = (
+   LDS_CRLF,
+   LDS_CR,
+   LDS_LF
+);
+//Tipo de delimitador de línea a recibir
+TUtLineDelRecv = (
+   LDR_CRLF,  //El salto de línea es CR-LF (o LF-CR)
+   LDR_CR,    //El salto de línea es este caracter. Se ignora LF
+   LDR_LF,    //El salto de línea es este caracter. Se ignora CR
+   LDR_CR_LF  //El salto de línea es este CR o LF
 );
 
 {Evento. Pasa la cantidad de bytes que llegan y la columna y fila final de la matriz Lin[] }
@@ -71,12 +85,25 @@ TEvAddNewLine   = procedure(HeightScr: integer) of object;
 { TConsoleProc }
 //Clase que define un proceso
 TConsoleProc = class
+private
+  bolsa   : array[0..UBLOCK_SIZE] of char;  //buffer para almacenar salidas(tiene un caracter más)
+  nLeidos : LongInt;
+  lstTmp  : TStringList;
+
+  cAnim   : integer;      //contador para animación de ícono de estado
+  angA    : integer;      //contador para animación de ícono de estado
+  LoopList: TStringList;  //lista de salida para cuando se usa RunInLoop().
+  function ChangeState(estado0: TEstadoCon): boolean;  //Cambia el State actual
+  procedure ProcLoop(const lin: string);
+  procedure SetLineDelimRecv(AValue: TUtLineDelRecv);
 protected
   panel     : TStatusPanel; //referencia a panel para nostrar estado
   curPanel  : TStatusPanel; //para nostrar posición de cursor de editor de salida
   lastState : TEstadoCon;  //Estado anterior
   txtState  : string;      //Cadena que describe el estado actual de la conexión
-  clock     : TTimer;     //temporizador para leer salida del proceso
+  clock     : TTimer;      //temporizador para leer salida del proceso
+  FLineDelimSend: TUtLineDelSend;
+  FLineDelimRecv: TUtLineDelRecv;
   function ContainsPrompt(const linAct: string; var pos1, pos2: integer;
     posIni: integer=1): boolean;
   function ContainsPromptL(const linAct: string; var pos1, pos2: integer
@@ -85,12 +112,39 @@ protected
   function GetAnchoTerminal: integer;
   procedure SetAnchoTerminal(AValue: integer);
   function ReadData: boolean;
+  //respuesta a eventos de term
+  procedure termAddLine;
+  procedure termRefreshLines(fIni, fFin: integer);
+  procedure termRecSysComm(info: string);
+  procedure termLineCompleted(const lineCompleted: string);
+public  //Eventos
+  //Eventos de cambio de estado
+  OnConnecting : TEvProcState;    //indica que se inicia el proceso y trata de conectar
+  OnBusy       : TEvProcState;    //indica que está esperando prompt
+  OnStopped    : TEvProcState;    //indica que se terminó el proceso
+  OnGetPrompt  : TEvGetPrompt;   //indica que llegó el prompt
+  OnChangeState: TEvRecSysComm;   //cambia de estado
+  //Eventos de llegada de datos
+  OnRefreshAll  : TEvRefreshAll;   //Para refrescar todo el contenido del terminal. No recomendable.
+  OnInitScreen  : TEvInitScreen;   //indica que se debe agregar líneas de texto
+  OnRefreshLine : TEvRefreshLine;  //indica que se deben refrescar una línea
+  OnRefreshLines: TEvRefreshLines; //indica que se deben refrescar un grupo de líneas
+  OnAddLine     : TEvAddNewLine;   //inidca que se debe agregar una línea a la salida
+  //Eventos de llegada de datos, opcionales.
+  OnLineCompleted:TEvLinCompleted; {Cuando se ha terminado de escribir una línea en el terminal.
+                                   No funcionará si es que se producen saltos en el cursor}
+  OnLinePrompt  : TEvLinCompleted;  //Cuando llega la línea del prompt
+  //Eventos adicionales
+  OnChkForPrompt: TEvChkForPrompt; //Permite incluir una rutina externa para verificación de prompt.
+  OnFirstReady  : TEvGetPrompt;    //La primera vez que de detcta el prompt
+  OnReadData    : TEvReadData;    //Cuando llega una trama de datos por el terminal
+  OnRecSysComm  : TEvRecSysComm;   {indica que llegó información del sistema remoto (usuario,
+                                  directorio actual, etc) Solo para conex. Telnet}
 public
   //datos del proceso
-  State      : TEstadoCon;   //Estado de la conexión
-  LineDelim  : TTypLineDel;  //Tipo de delimitaodr de línea
-  ClearOnOpen: boolean;      //Para limpiar pantalla al llamar a Open()
-  p          : TProcess;     //el proceso a manejar
+  State        : TEstadoCon;    //Estado de la conexión
+  ClearOnOpen  : boolean;       //Para limpiar pantalla al llamar a Open()
+  p            : TProcess;      //el proceso a manejar
   //manejo del prompt
   detecPrompt: boolean;      //activa la detección de prompt.
   promptIni  : string;       //cadena inicial del prompt
@@ -100,29 +154,8 @@ public
 
   msjError   : string;       //guarda el mensaje de error
   term       : TTermVT100;   //Terminal
-
-  //eventos de cambio de estado
-  OnConnecting : TEvProcState;    //indica que se inicia el proceso y trata de conectar
-  OnBusy       : TEvProcState;    //indica que está esperando prompt
-  OnStopped    : TEvProcState;    //indica que se terminó el proceso
-  OnGetPrompt  : TEvGetPrompt;   //indica que llegó el prompt
-  OnChangeState: TEvRecSysComm;   //cambia de estado
-  //eventos de llegada de datos
-  OnRefreshAll  : TEvRefreshAll;   //Para refrescar todo el contenido del terminal. No recomendable.
-  OnInitScreen  : TEvInitScreen;   //indica que se debe agregar líneas de texto
-  OnRefreshLine : TEvRefreshLine;  //indica que se deben refrescar una línea
-  OnRefreshLines: TEvRefreshLines; //indica que se deben refrescar un grupo de líneas
-  OnAddLine     : TEvAddNewLine;   //inidca que se debe agregar una línea a la salida
-  //eevntos de llegada de datos, opcionales.
-  OnLineCompleted:TEvLinCompleted; {Cuando se ha terminado de escribir una línea en el terminal.
-                                   No funcionará si es que se producen saltos en el cursor}
-  OnLinePrompt  : TEvLinCompleted;  //Cuando llega la línea del prompt
-  //eventos adicionales
-  OnChkForPrompt: TEvChkForPrompt; //Permite incluir una rutina externa para verificación de prompt.
-  OnFirstReady  : TEvGetPrompt;    //La primera vez que de detcta el prompt
-  OnReadData    : TEvReadData;    //Cuando llega una trama de datos por el terminal
-  OnRecSysComm  : TEvRecSysComm;   {indica que llegó información del sistema remoto (usuario,
-                                  directorio actual, etc) Solo para conex. Telnet}
+  property LineDelimSend: TUtLineDelSend read FLineDelimSend write FLineDelimSend; //Tipo de delimitador de línea
+  property LineDelimRecv: TUtLineDelRecv read FLineDelimRecv write SetLineDelimRecv; //Tipo de delimitador de línea para recibir
   procedure Start;   //inicia proceso
   procedure Open(progPath, progParam: string); //Inicia conexión
   function Close: boolean;    //Termina la conexión
@@ -142,24 +175,9 @@ public
   procedure DrawStatePanel(c: TCanvas; const Rect: TRect); virtual;
   function LastLine: string; inline; //devuelve la última línea
   procedure AutoConfigPrompt; virtual;
-  //respuesta a eventos de term
-  procedure termAddLine;
-  procedure termRefreshLines(fIni, fFin: integer);
-  procedure termRecSysComm(info: string);
-  procedure termLineCompleted(const lineCompleted: string);
-  //constructor y destructor
+public   //Constructor y destructor
   constructor Create(PanControl: TStatusPanel); virtual;   //Constructor
   destructor Destroy; override;   //Limpia los buffers
-private
-  bolsa   : array[0..UBLOCK_SIZE] of char;  //buffer para almacenar salidas(tiene un caracter más)
-  nLeidos : LongInt;
-  lstTmp  : TStringList;
-
-  cAnim   : integer;    //contador para animación de ícono de estado
-  angA    : integer;    //contador para animación de ícono de estado
-  LoopList: TStringList;   //lista de salida para cuando se usa RunInLoop().
-  function ChangeState(estado0: TEstadoCon): boolean;  //Cambia el State actual
-  procedure ProcLoop(const lin: string);
 end;
 
 implementation
@@ -352,7 +370,6 @@ begin
   c.Font.Color:=clBlack;
   c.TextRect(Rect, 19 + Rect.Left, 2 + Rect.Top, txtState);
 end;
-
 function TConsoleProc.GetAnchoTerminal: integer;
 //Devuelve el ancho del terminal
 begin
@@ -364,7 +381,6 @@ begin
   if term.width=AValue then Exit;
   term.width := AValue;
 end;
-
 procedure TConsoleProc.Start;
 {Inicia el proceso y verifica si hubo error al lanzar el proceso. Los parámetros del
 proceso, deben haberse fijado antes en el proceso.}
@@ -637,10 +653,10 @@ begin
   //incluye el salto final
   txt += #1;
   //Aplica el salto configurado
-  case LineDelim of
-  TTL_CRLF: txt := StringReplace(txt,#1,#13#10,[rfReplaceAll]); //envía CRLF
-  TTL_CR  : txt := StringReplace(txt,#1,#13,[rfReplaceAll]);  //envía CR
-  TTL_LF  : txt := StringReplace(txt,#1,#10,[rfReplaceAll]);  //envía LF
+  case FLineDelimSend of
+  LDS_CRLF: txt := StringReplace(txt,#1,#13#10,[rfReplaceAll]); //envía CRLF
+  LDS_CR  : txt := StringReplace(txt,#1,#13,[rfReplaceAll]);  //envía CR
+  LDS_LF  : txt := StringReplace(txt,#1,#10,[rfReplaceAll]);  //envía LF
   end;
   Send(txt);
 end;
@@ -711,6 +727,16 @@ begin
     LoopList.Add(lin);   //solo acumula
   end;
 end;
+procedure TConsoleProc.SetLineDelimRecv(AValue: TUtLineDelRecv);
+begin
+  FLineDelimRecv:=AValue;
+  case FLineDelimRecv of
+  LDR_CRLF : begin term.bhvCR := tbcNormal ; term.bhvLF := tbcNormal ; end;
+  LDR_CR   : begin term.bhvCR := tbcNewLine; term.bhvLF := tbcNone   ; end;
+  LDR_LF   : begin term.bhvCR := tbcNone   ; term.bhvLF := tbcNewLine; end;
+  LDR_CR_LF: begin term.bhvCR := tbcNewLine; term.bhvLF := tbcNewLine; end;
+  end;
+end;
 function TConsoleProc.RunInLoop(TimeoutSegs: integer = -1): boolean;
 {Ejecuta el proceso en un lazo, hasta que la aplicación termine o hasta que se
 cumpla el número de segundos indciados en "TimeoutSegs". Si se detiene por desborde
@@ -760,7 +786,7 @@ function TConsoleProc.RunInLoop(progPath, progParam: string;
 begin
   OnLineCompleted:=@ProcLoop;
   LoopList := progOut;   //aquí se acumulará la salida
-  RunInLoop(progPath, progParam, TimeoutSegs);
+  Result := RunInLoop(progPath, progParam, TimeoutSegs);
   OnLineCompleted:=nil;
   //puede generar error
 end;
@@ -889,15 +915,17 @@ begin
     panel.Style:=psOwnerDraw;  //configura panel para dibujarse por evento
   detecPrompt := true;    //activa detección de prompt por defecto
   promptMatch := prmExactly;   //debe ser exacta
-  LineDelim := TTL_CRLF;
   ClearOnOpen := true;         //por defecto se limpia la pantalla
-
+  //Crea y configura terminal
   term := TTermVT100.Create; //terminal
   term.OnRefreshLines:=@termRefreshLines;
   term.OnScrollLines:=@termAddLine;
   term.OnLineCompleted:=@termLineCompleted;
   term.OnRecSysComm:=@termRecSysComm; {usaremos este evento para detectar la llegada
                                       del prompt}
+  //Configura delimitadores de línea iniciales
+  LineDelimSend := LDS_CRLF;
+  LineDelimRecv := LDR_LF;
 end;
 destructor TConsoleProc.Destroy;
 //Destructor
