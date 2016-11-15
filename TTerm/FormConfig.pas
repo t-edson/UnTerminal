@@ -11,7 +11,7 @@ interface
 uses
   SysUtils, Forms, Graphics, SynEdit, Buttons, ComCtrls,
   UnTerminal, MisUtils, SynFacilCompletion,
-  FrameCfgConex, frameCfgDetPrompt, frameCfgPantTerm, FrameCfgMacros,
+  FrameCfgConex, frameCfgDetPrompt, frameCfgPantTerm,
   ConfigFrame;
 
 type
@@ -48,7 +48,6 @@ type
     fcConex   : TFraConexion;   //conexión
     fcPantTerm: TfraPantTerm;
     fcDetPrompt: TfraDetPrompt;
-    fcMacros   : TfcMacros;
     procedure Iniciar(hl0: TSynFacilComplet);
     procedure LeerArchivoIni(iniFile: string='');
     procedure escribirArchivoIni(iniFile: string='');
@@ -78,9 +77,6 @@ begin
   fcPantTerm:= TfraPantTerm.Create(Self);
   fcPantTerm.parent := self;
 
-  fcMacros    := TfcMacros.Create(self);
-  fcMacros.Parent := self;
-
   //Obtiene nombre de archivo INI
   arIni := GetIniName;
   //selecciona primera opción
@@ -101,7 +97,6 @@ procedure TConfig.Iniciar(hl0: TSynFacilComplet);
 begin
   //inicia Frames
   fcConex.Iniciar('conexion', prTel);
-  fcMacros.Iniciar('cfgMacros');
   fcPantTerm.Iniciar('panTerm',prTel);
   fcDetPrompt.Iniciar('detPrompt', edTerm, prTel);
 
@@ -117,7 +112,6 @@ begin
   '1'  : fcConex.ShowPos(145,0) ;
   '2'  : fcDetPrompt.ShowPos(145,0);
   '3'    : fcPantTerm.ShowPos(145,0);
-  '4'    : fcMacros.ShowPos(145,0);
   end;
 end;
 
@@ -239,21 +233,17 @@ procedure TConfig.SetLanguage(lang: string);
 //Rutina de traducción
 begin
   fcDetPrompt.SetLanguage(lang);
-  fcPantTerm.SetLanguage(lang);
-  fcMacros.SetLanguage(lang);
 
   case lowerCase(lang) of
   'es': begin
       TTreeNodeFromId('1',TreeView1).Text:='Conexión';
       TTreeNodeFromId('2',TreeView1).Text:='Detec.de Prompt';
       TTreeNodeFromId('3',TreeView1).Text:='Terminal';
-      TTreeNodeFromId('4',TreeView1).Text:='Macros';
     end;
   'en': begin
       TTreeNodeFromId('1',TreeView1).Text:='Connection';
       TTreeNodeFromId('2',TreeView1).Text:='Prompt detection';
       TTreeNodeFromId('3',TreeView1).Text:='Terminal';
-      TTreeNodeFromId('4',TreeView1).Text:='Macros';
     end;
   end;
 end;

@@ -21,8 +21,6 @@ type
   TfrmPrincipal = class(TForm)
   published
     AcArcSalir: TAction;
-    AcArcConec: TAction;
-    AcArcDescon: TAction;
     acEdCopy: TEditCopy;
     acEdCut: TEditCut;
     acEdModCol: TAction;
@@ -36,12 +34,6 @@ type
     AcTerLimBuf: TAction;
     AcPCmEnvLin: TAction;
     AcPCmEnvTod: TAction;
-    AcPcmVerBHer: TAction;
-    AcPcmAbrir: TAction;
-    AcPcmGuardar: TAction;
-    AcPcmNuevo: TAction;
-    AcPcmGuaCom: TAction;
-    AcPcmConfig: TAction;
     AcTerConfig: TAction;
     acPCmEnvCtrC: TAction;
     AcTerEnvCtrlC: TAction;
@@ -56,7 +48,6 @@ type
     ActionList1: TActionList;
     ImageList1: TImageList;
     MainMenu1: TMainMenu;
-    MenuItem1: TMenuItem;
     MenuItem13: TMenuItem;
     mnEdicion: TMenuItem;
     mnVer: TMenuItem;
@@ -70,13 +61,8 @@ type
     MenuItem22: TMenuItem;
     MenuItem23: TMenuItem;
     MenuItem26: TMenuItem;
-    MenuItem29: TMenuItem;
     MenuItem30: TMenuItem;
     MenuItem31: TMenuItem;
-    MenuItem34: TMenuItem;
-    MenuItem41: TMenuItem;
-    MenuItem42: TMenuItem;
-    MenuItem43: TMenuItem;
     MenuItem46: TMenuItem;
     MenuItem48: TMenuItem;
     MenuItem49: TMenuItem;
@@ -92,7 +78,6 @@ type
     MenuItem59: TMenuItem;
     MenuItem60: TMenuItem;
     MenuItem61: TMenuItem;
-    MenuItem64: TMenuItem;
     mnTerSend: TMenuItem;
     MenuItem68: TMenuItem;
     MenuItem69: TMenuItem;
@@ -148,13 +133,9 @@ type
     ToolButton15: TToolButton;
     ToolButton16: TToolButton;
     ToolButton17: TToolButton;
-    ToolButton18: TToolButton;
     ToolButton2: TToolButton;
     ToolButton20: TToolButton;
     ToolButton21: TToolButton;
-    ToolButton3: TToolButton;
-    ToolButton4: TToolButton;
-    ToolButton5: TToolButton;
     ToolButton6: TToolButton;
     ToolButton7: TToolButton;
     ToolButton8: TToolButton;
@@ -163,14 +144,10 @@ type
     procedure acEdPasteExecute(Sender: TObject);
     procedure acEdRedoExecute(Sender: TObject);
     procedure acEdUndoExecute(Sender: TObject);
-    procedure AcPcmAbrirExecute(Sender: TObject);
     procedure AcPcmConfigExecute(Sender: TObject);
     procedure acPCmEnvCtrCExecute(Sender: TObject);
     procedure AcPCmEnvLinExecute(Sender: TObject);
     procedure AcPCmEnvTodExecute(Sender: TObject);
-    procedure AcPcmGuaComExecute(Sender: TObject);
-    procedure AcPcmGuardarExecute(Sender: TObject);
-    procedure AcPcmNuevoExecute(Sender: TObject);
     procedure AcHerCfgExecute(Sender: TObject);
     procedure AcTerConecExecute(Sender: TObject);
     procedure AcTerConfigExecute(Sender: TObject);
@@ -185,7 +162,6 @@ type
     function BuscaUltPrompt: integer;
     procedure AcVerEdiMacExecute(Sender: TObject);
     procedure ChangeEditorState;
-    procedure edPComDropFiles(Sender: TObject; X, Y: integer; AFiles: TStrings);
     procedure edPComEnter(Sender: TObject);
     procedure edPComKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure edPComKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -238,8 +214,6 @@ type
     ejecCom: boolean;   //indica que está ejecutando un comando (editor remoto, exp. remoto ...)
     SesAct : string;    //nombre de la sesión actual
     procedure InicConect;
-    procedure InicConectTelnet(ip: string);
-    procedure InicConectSSH(ip: string);
     procedure ActualizarInfoPanel0;
     function ConexDisponible: boolean;
     procedure SetLanguage(lang: string);
@@ -634,32 +608,16 @@ end;
 procedure TfrmPrincipal.InicConect;  //Inicia la conexión actual
 begin
   //se supone que el proceso ya está configurado y listo para abrir
-  proc.Open(Config.fcConex.Other , '');  //lo abre
+  proc.Open(Config.fcConex.Command , '');  //lo abre
   if msjError<>'' then begin
     msgerr(msjError);
   end;
   ActualizarInfoPanel0;  //por si ha cambiado la conexión
 end;
-procedure TfrmPrincipal.InicConectTelnet(ip: string);  //Inicia una conexión telnet
-begin
-  //configura conexión rápida Telnet
-  config.fcConex.tipo := TCON_TELNET;
-  config.fcConex.ip := ip;
-  config.fcConex.LineDelim := TTL_LF;
-  InicConect;
-end;
-procedure TfrmPrincipal.InicConectSSH(ip: string);  //Inicia una conexión SSH
-begin
-  //configura conexión rápida Telnet
-  config.fcConex.tipo := TCON_SSH;
-  config.fcConex.ip := ip;
-  config.fcConex.LineDelim := TTL_LF;
-  InicConect;
-end;
 procedure TfrmPrincipal.ActualizarInfoPanel0;
 //Actualiza el panel 0, con información de la conexión o de la ejecución de macros
 begin
-   StatusBar1.Panels[0].Text:='Proc: '+Config.fcConex.Other;
+   StatusBar1.Panels[0].Text:='Proc: '+Config.fcConex.Command;
    //refresca para asegurarse, porque el panel 0 está en modo gráfico
    StatusBar1.InvalidatePanel(0,[ppText]);
 end;
@@ -768,7 +726,6 @@ procedure TfrmPrincipal.ChangeEditorState;
 //Si llega aquí es porque cambia el estado del editor. Actualiza los menús:
 begin
   if edPCom.Focused then begin
-    AcPcmGuardar.Enabled:=ePCom.Modified;
     //este es el único editor que acepta Undo/Redo
     acEdUndo.Enabled:=ePCom.CanUndo;
     acEdRedo.Enabled:=ePCom.CanRedo;
@@ -809,48 +766,15 @@ begin
     proc.SendLn(ClipBoard.AsText);  //envía al terminal
   end;
 end;
-
-procedure TfrmPrincipal.edPComDropFiles(Sender: TObject; X, Y: integer;
-  AFiles: TStrings);
-begin
-  //Carga archivo arrastrados
-  if ePCom.SaveQuery then Exit;   //Verifica cambios
-  ePCom.LoadFile(AFiles[0]);
-end;
 procedure TfrmPrincipal.edPComEnter(Sender: TObject);  //Toma el enfoque
 begin
   ChangeEditorState;  //para actualizar los menús
   ePCom.PanCursorPos := nil; //para forzar a actualiazr la posición del cursor
   ePCom.PanCursorPos := StatusBar1.Panels[2];
 end;
-
 procedure TfrmPrincipal.AcVerEdiMacExecute(Sender: TObject);
 begin
   frmEditMacros.Show;
-end;
-procedure TfrmPrincipal.AcPcmNuevoExecute(Sender: TObject);
-begin
-  if ePCom.SaveQuery then Exit;   //Verifica cambios
-  ePCom.NewFile(false);
-  ePComFileOpened;
-  ePCom.Text:=dic('#Archivo de comandos')+LineEnding;
-end;
-procedure TfrmPrincipal.AcPcmAbrirExecute(Sender: TObject);
-begin
-  //Pone como primera opción todos los archivos, porque no se restringe solo a *.sh
-  OpenDialog1.Filter:='Todos los archivos|*.*|Archivo de comandos|*.sh|Archivos de texto|*.txt';
-  OpenDialog1.InitialDir:=rutScripts;  //busca aquí por defecto
-  ePCom.OpenDialog(OpenDialog1);
-end;
-procedure TfrmPrincipal.AcPcmGuardarExecute(Sender: TObject);
-begin
-  ePCom.SaveFile;
-end;
-procedure TfrmPrincipal.AcPcmGuaComExecute(Sender: TObject);
-begin
-  SaveDialog1.Filter:='Archivo de comandos|*.sh|Todos los archivos|*.*';
-  sAVEDialog1.InitialDir:=rutScripts;  //busca aquí por defecto
-  ePCom.SaveAsDialog(SaveDialog1);
 end;
 procedure TfrmPrincipal.EnviarTxt(txt: string);
 //Envía un tetxo al terminal, aplicando el preprocesamiento si es necesario
@@ -976,9 +900,7 @@ begin
       MenuItem82.Caption:='Copiar Elemento';
       MenuItem72.Caption:='&Enviar';
 
-      AcArcDescon.Caption := '&Desconectar';
       AcArcSalir.Caption := '&Salir';
-      AcArcConec.Caption := '&Conexión Rápida...';
       acEdUndo.Caption := '&Deshacer';
       acEdRedo.Caption := '&Rehacer';
       acEdCut.Caption := 'Cor&tar';
@@ -989,15 +911,9 @@ begin
       AcVerPanCom.Caption := '&Panel de Comandos';
       AcVerBarEst.Caption := 'Barra de estado';
       AcVerEdiMac.Caption := 'Editor de &Macros';
-      AcPcmNuevo.Caption := '&Nuevo';
-      AcPcmAbrir.Caption := '&Abrir...';
-      AcPcmGuardar.Caption := '&Guardar';
-      AcPcmGuaCom.Caption := 'G&uardar Como...';
       AcPCmEnvLin.Caption := 'Enviar &Línea';
       AcPCmEnvTod.Caption := 'Enviar &Todo';
       acPCmEnvCtrC.Caption := 'Enviar Ct&rl+C';
-      AcPcmVerBHer.Caption := 'Ver Barra de &Herramientas';
-      AcPcmConfig.Caption := 'Confi&gurar';
       AcTerConec.Caption := '&Conectar';
       AcTerDescon.Caption := '&Desconectar';
       AcTerLimBuf.Caption := '&Limpiar Buffer';
@@ -1026,9 +942,7 @@ begin
       MenuItem82.Caption:='Copy Element';
       MenuItem72.Caption:='&Send';
 
-      AcArcDescon.Caption := '&Disconnect';
       AcArcSalir.Caption := '&Exit';
-      AcArcConec.Caption := '&Quick Connection...';
       acEdUndo.Caption := '&Undo';
       acEdRedo.Caption := '&Redo';
       acEdCut.Caption := 'C&ut';
@@ -1039,15 +953,9 @@ begin
       AcVerPanCom.Caption := '&Comand Panel';
       AcVerBarEst.Caption := 'Status Bar';
       AcVerEdiMac.Caption := '&Macro Editor';
-      AcPcmNuevo.Caption := '&New';
-      AcPcmAbrir.Caption := '&Open...';
-      AcPcmGuardar.Caption := '&Save';
-      AcPcmGuaCom.Caption := 'Sa&ve As...';
       AcPCmEnvLin.Caption := 'Send &Line';
       AcPCmEnvTod.Caption := 'Send &All';
       acPCmEnvCtrC.Caption := 'Send Ct&rl+C';
-      AcPcmVerBHer.Caption := 'Show &Toolbar';
-      AcPcmConfig.Caption := 'Confi&gure';
       AcTerConec.Caption := '&Connect';
       AcTerDescon.Caption := '&Disconnect';
       AcTerLimBuf.Caption := '&Clean Buffer';

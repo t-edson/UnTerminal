@@ -86,7 +86,7 @@ procedure Cod_StartProgram;
 //Codifica la parte inicial del programa
 begin
   sp := 0;  //inicia pila
-  Timeout := config.fcMacros.tpoMax;   //inicia variable
+  Timeout := config.fcPantTerm.tpoMax;   //inicia variable
   DetEjec := false;
   //////// variables predefinidas ////////////
   CreateVariable('timeout', 'int');
@@ -139,7 +139,7 @@ begin
 //  res.used:=false;  //No hay obligación de que la asignación devuelva un valor.
   if Upcase(p1.rVar.nom) = 'TIMEOUT' then begin
     //variable interna
-    config.fcMacros.TpoMax := p2.ReadInt;
+    config.fcPantTerm.TpoMax := p2.ReadInt;
     config.fcConex.UpdateChanges;  //actualiza
   end;
 end;
@@ -180,30 +180,18 @@ begin
   //aquí se puede mover directamente res memoria sin usar el registro res
   p1.rVar.valStr := p2.ReadStr;
   //  res.used:=false;  //No hay obligación de que la asignación devuelva un valor.
-  if Upcase(p1.rVar.nom) = 'CURIP' then begin
-    //variable interna
-    config.fcConex.IP := p2.ReadStr;
-    config.fcConex.UpdateChanges;  //actualiza
-  end else if Upcase(p1.rVar.nom) = 'CURTYPE' then begin
-    //variable interna
-    case UpCase(p2.ReadStr) of
-    'TELNET': config.fcConex.tipo := TCON_TELNET;  //Conexión telnet común
-    'SSH'   : config.fcConex.tipo := TCON_SSH;     //Conexión ssh
-    'OTHER' : config.fcConex.tipo := TCON_OTHER;   //Otro proceso
-    end;
-    config.fcConex.UpdateChanges;  //actualiza
-  end else if Upcase(p1.rVar.nom) = 'CURENDLINE' then begin
+  if Upcase(p1.rVar.nom) = 'CURENDLINE' then begin
     //variable interna
     if UpCase(p2.ReadStr) = 'CRLF' then
-      config.fcConex.LineDelim := TTL_CRLF;
+      config.fcConex.LineDelimSnd := LDS_CRLF;
     if UpCase(p2.ReadStr) = 'CR' then
-      config.fcConex.LineDelim := TTL_CR;
+      config.fcConex.LineDelimSnd:= LDS_CR;
     if UpCase(p2.ReadStr) = 'LF' then
-      config.fcConex.LineDelim := TTL_LF;
+      config.fcConex.LineDelimSnd:= LDS_LF;
     config.fcConex.UpdateChanges;  //actualiza
   end else if Upcase(p1.rVar.nom) = 'CURAPP' then begin
     //indica aplicativo actual
-    config.fcConex.Other := p2.ReadStr;
+    config.fcConex.Command := p2.ReadStr;
     config.fcConex.UpdateChanges;  //actualiza
   end else if Upcase(p1.rVar.nom) = 'PROMPTSTART' then begin
     //indica aplicativo actual
@@ -271,22 +259,10 @@ begin
 //  msgbox('desconectado');  //sabemos que debe ser String
   frmPrincipal.AcTerDesconExecute(nil);
 end;
-procedure fun_connectTelnet(fun :TxpFun);
-//conecta con telnet
-begin
-  PopResult;  //saca parámetro 1
-  frmPrincipal.InicConectTelnet(stack[sp].valStr);   //inicia conexión
-end;
 procedure fun_connect(fun :TxpFun);
 //Inicia la conexión actual
 begin
   frmPrincipal.InicConect;   //inicia conexión
-end;
-procedure fun_connectSSH(fun :TxpFun);
-//conecta con SSH
-begin
-  PopResult;  //saca parámetro 1
-  frmPrincipal.InicConectSSH(stack[sp].valStr);   //inicia conexión
 end;
 procedure fun_sendln(fun :TxpFun);
 //desconecta la conexión actual
@@ -476,12 +452,8 @@ begin
   f := CreateSysFunction('puts', tipInt, @fun_putsI);  //sobrecargada
   f.CreateParam('',tipInt);
   f := CreateSysFunction('disconnect', tipInt, @fun_disconnect);
-  f := CreateSysFunction('connect', tipInt, @fun_connectTelnet);
-  f.CreateParam('',tipStr);
   f := CreateSysFunction('connect', tipInt, @fun_connect);  //sobrecargada
 
-  f := CreateSysFunction('connectSSH', tipInt, @fun_connectSSH);
-  f.CreateParam('',tipStr);
   f := CreateSysFunction('sendln', tipInt, @fun_sendln);
   f.CreateParam('',tipStr);
   f := CreateSysFunction('wait', tipInt, @fun_wait);
