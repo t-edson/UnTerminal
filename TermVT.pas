@@ -291,8 +291,8 @@ procedure TTermVT100.AddData(const cad: PChar);
 {Recibe una serie de caracteres y los agrega a la pantalla en la posición actual
 del terminal hasta encontrar el caracter #0. Reconoce algunas secuencias de escape,
 pero ignora las que cambian la apariencia del texto.}
-  procedure SaltoDeLinea;
-  {Ejeucta un salto de línea}
+  procedure CurReturn;
+  {Ejecuta un salto de línea}
   var
     tmp: Ttslin;
   begin
@@ -302,6 +302,19 @@ pero ignora las que cambian la apariencia del texto.}
       OnLineCompleted(tmp); //dispara evento
     end else begin  //sin evento
       CursorRet;
+    end;
+  end;
+  procedure CurMovDown;
+  {Mueve el cursor una posición}
+  var
+    tmp: Ttslin;
+  begin
+    if OnLineCompleted <> nil then begin  //hay evento que generar
+      tmp := buf[CurY];     //guarda cadena que se termina de editar
+      CursorDown;
+      OnLineCompleted(tmp); //dispara evento
+    end else begin  //sin evento
+      CursorDown;
     end;
   end;
 var
@@ -322,7 +335,7 @@ begin
       #13:begin   //salto de línea CR
         case bhvCR of
         tbcNone   : ;  //sin acción
-        tbcNewLine: SaltoDeLinea;
+        tbcNewLine: CurReturn;
         tbcNormal : SetCurX(1);   //retorno de carro
         end;
         inc(i);
@@ -330,8 +343,10 @@ begin
       #10: begin  //salto LF
         case bhvLF of
         tbcNone   : ;  //sin acción
-        tbcNewLine: SaltoDeLinea;
-        tbcNormal : SetCurY(curY + 1);   //siguiente línea
+        tbcNewLine: CurReturn;
+        tbcNormal : begin  //siguiente línea
+            CurMovDown;
+          end;
         end;
         inc(i);   //ignora
       end;
