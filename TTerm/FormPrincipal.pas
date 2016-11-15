@@ -1,18 +1,13 @@
 {Define a la ventana de sesión. Esta ventana permite mostrar el texto que va llegando
  de un proceso. Servirá para visualizar como se interactúa con la sesión y para poder
  iniciar conexiones a sqlplus mediante el telnet.}
-
 unit FormPrincipal;
 {$mode objfpc}{$H+}
-
 interface
 uses
-  Classes, SysUtils, FileUtil, LazUTF8, SynEdit, Forms, Controls, Graphics,
-  Dialogs, Menus, ActnList, ExtCtrls, ComCtrls, SynEditKeyCmds,
-  SynEditMarkupHighAll, SynEditMiscClasses, LCLType, LCLProc, LCLIntf, StdActns,
-  UnTerminal, Clipbrd, FormConfig,
-  FormEditMacros, MisUtils, Globales, FrameCfgConex, FormSelFuente,
-  TermVT, uResaltTerm, SynFacilUtils;
+  Classes, SysUtils, SynEdit, Forms, Controls, Graphics, Menus, ActnList, ExtCtrls,
+  ComCtrls, LCLType, LCLIntf, SynEditKeyCmds, SynEditMarkupHighAll, SynEditMiscClasses,
+  UnTerminal, FormConfig, FormEditMacros, MisUtils, Globales, TermVT, uResaltTerm;
 
 type
 
@@ -21,61 +16,30 @@ type
   TfrmPrincipal = class(TForm)
   published
     AcArcSalir: TAction;
-    acEdCopy: TEditCopy;
-    acEdCut: TEditCut;
-    acEdModCol: TAction;
-    acEdRedo: TAction;
-    acEdSelecAll: TAction;
-    acEdUndo: TAction;
     AcHerCfg: TAction;
     AcTerDetPrm: TAction;
     AcTerDescon: TAction;
     AcTerConec: TAction;
     AcTerLimBuf: TAction;
     AcPCmEnvLin: TAction;
-    AcPCmEnvTod: TAction;
     AcTerConfig: TAction;
     acPCmEnvCtrC: TAction;
     AcTerEnvCtrlC: TAction;
-    AcTerEnvEnter: TAction;
     AcTerEnvCR: TAction;
-    AcTerEnvCRLF: TAction;
     AcTerEnvLF: TAction;
-    acEdPaste: TAction;
-    AcVerBarEst: TAction;
-    AcVerEdiMac: TAction;
-    AcVerPanCom: TAction;
+    acHerMac: TAction;
     ActionList1: TActionList;
     ImageList1: TImageList;
     MainMenu1: TMainMenu;
+    MenuItem1: TMenuItem;
     MenuItem13: TMenuItem;
-    mnEdicion: TMenuItem;
-    mnVer: TMenuItem;
-    MenuItem16: TMenuItem;
-    MenuItem17: TMenuItem;
-    MenuItem18: TMenuItem;
-    MenuItem19: TMenuItem;
-    mnArchivo: TMenuItem;
-    MenuItem20: TMenuItem;
-    MenuItem21: TMenuItem;
-    MenuItem22: TMenuItem;
-    MenuItem23: TMenuItem;
-    MenuItem26: TMenuItem;
     MenuItem30: TMenuItem;
     MenuItem31: TMenuItem;
     MenuItem46: TMenuItem;
-    MenuItem48: TMenuItem;
-    MenuItem49: TMenuItem;
-    MenuItem50: TMenuItem;
-    MenuItem51: TMenuItem;
-    MenuItem52: TMenuItem;
-    MenuItem53: TMenuItem;
     MenuItem56: TMenuItem;
     MenuItem57: TMenuItem;
     MenuItem58: TMenuItem;
     MenuItem59: TMenuItem;
-    MenuItem60: TMenuItem;
-    MenuItem61: TMenuItem;
     mnTerSend: TMenuItem;
     MenuItem68: TMenuItem;
     MenuItem69: TMenuItem;
@@ -86,35 +50,19 @@ type
     MenuItem74: TMenuItem;
     MenuItem75: TMenuItem;
     MenuItem76: TMenuItem;
-    MenuItem77: TMenuItem;
-    MenuItem78: TMenuItem;
     MenuItem79: TMenuItem;
     MenuItem80: TMenuItem;
     MenuItem81: TMenuItem;
-    MenuItem82: TMenuItem;
-    MenuItem83: TMenuItem;
-    MenuItem84: TMenuItem;
-    MenuItem85: TMenuItem;
-    MenuItem86: TMenuItem;
-    mnLenguajes: TMenuItem;
     MenuItem47: TMenuItem;
-    mnAbrMacro: TMenuItem;
-    mnEjecMacro: TMenuItem;
     mnPanCom: TMenuItem;
-    MenuItem37: TMenuItem;
     mnHerram: TMenuItem;
     MenuItem40: TMenuItem;
-    MenuItem5: TMenuItem;
     mnTerminal: TMenuItem;
-    MenuItem7: TMenuItem;
     MenuItem8: TMenuItem;
     MenuItem9: TMenuItem;
-    OpenDialog1: TOpenDialog;
     Panel1: TPanel;
     Panel2: TPanel;
-    PopupMenu1: TPopupMenu;
     PopupMenu2: TPopupMenu;
-    SaveDialog1: TSaveDialog;
     Splitter1: TSplitter;
     StatusBar1: TStatusBar;
     edTerm: TSynEdit;
@@ -124,62 +72,40 @@ type
     Timer1: TTimer;
     ToolButton1: TToolButton;
     ToolButton10: TToolButton;
-    ToolButton11: TToolButton;
-    ToolButton12: TToolButton;
-    ToolButton14: TToolButton;
     ToolButton15: TToolButton;
     ToolButton16: TToolButton;
-    ToolButton17: TToolButton;
     ToolButton2: TToolButton;
     ToolButton20: TToolButton;
     ToolButton21: TToolButton;
     ToolButton6: TToolButton;
-    ToolButton7: TToolButton;
-    ToolButton8: TToolButton;
     ToolButton9: TToolButton;
     procedure AcArcSalirExecute(Sender: TObject);
-    procedure acEdPasteExecute(Sender: TObject);
-    procedure acEdRedoExecute(Sender: TObject);
-    procedure acEdUndoExecute(Sender: TObject);
     procedure AcPcmConfigExecute(Sender: TObject);
     procedure acPCmEnvCtrCExecute(Sender: TObject);
     procedure AcPCmEnvLinExecute(Sender: TObject);
-    procedure AcPCmEnvTodExecute(Sender: TObject);
     procedure AcHerCfgExecute(Sender: TObject);
     procedure AcTerConecExecute(Sender: TObject);
     procedure AcTerConfigExecute(Sender: TObject);
     procedure AcTerDesconExecute(Sender: TObject);
     procedure AcTerDetPrmExecute(Sender: TObject);
     procedure AcTerEnvCRExecute(Sender: TObject);
-    procedure AcTerEnvCRLFExecute(Sender: TObject);
     procedure AcTerEnvCtrlCExecute(Sender: TObject);
-    procedure AcTerEnvEnterExecute(Sender: TObject);
     procedure AcTerEnvLFExecute(Sender: TObject);
     procedure AcTerLimBufExecute(Sender: TObject);
-    function BuscaUltPrompt: integer;
     procedure AcVerEdiMacExecute(Sender: TObject);
-    procedure ChangeEditorState;
-    procedure edPComEnter(Sender: TObject);
     procedure edPComKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure edPComKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure edPComSpecialLineMarkup(Sender: TObject; Line: integer;
       var Special: boolean; Markup: TSynSelectedColor);
-    procedure edTermEnter(Sender: TObject);
     procedure edTermSpecialLineMarkup(Sender: TObject; Line: integer;
       var Special: boolean; Markup: TSynSelectedColor);
-    procedure ePComFileOpened;
     procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
     procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure FormDropFiles(Sender: TObject; const FileNames: array of String);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormKeyPress(Sender: TObject; var Key: char);
     procedure FormShow(Sender: TObject);
-    procedure itemEjecMacro(Sender: TObject);
-    procedure itemAbreMacro(Sender: TObject);
-    procedure mnAbrMacroClick(Sender: TObject);
-    procedure mnEjecMacroClick(Sender: TObject);
     procedure procChangeState(info: string; pFinal: TPoint);
     procedure procInitScreen(const grilla: TtsGrid; fIni, fFin: integer);
     procedure procAddLine(HeightScr: integer);
@@ -191,13 +117,9 @@ type
     procedure Timer1Timer(Sender: TObject);
   private
     hlTerm    : TResaltTerm;
-    ePCom     : TSynFacilEditor;  //ventana de editor
-    eTerm     : TSynFacilEditor;  //ventana de terminal
     LlegoPrompt: boolean;   //bandera
     parpadPan0: boolean;   //para activar el parpadeo del panel0
     ticComRec : integer;   //contador para comando recurrente
-    function BuscaPromptAba: integer;
-    function BuscaPromptArr: integer;
     procedure DistribuirPantalla;
     procedure EnviarTxt(txt: string);
     procedure InicTerminal;
@@ -208,7 +130,6 @@ type
     ejecCom: boolean;   //indica que está ejecutando un comando (editor remoto, exp. remoto ...)
     procedure InicConect;
     procedure ActualizarInfoPanel0;
-    function ConexDisponible: boolean;
     procedure SetLanguage(lang: string);
   end;
 
@@ -228,23 +149,11 @@ begin
   hlTerm := TResaltTerm.Create(Self);  //crea resaltador
 
   //configura editor de terminal
-  eTerm := TSynFacilEditor.Create(edTerm,'SinNombre','sh');   //Crea Editor
-  eTerm.PanCursorPos := StatusBar1.Panels[2];  //panel para la posición del cursor
   InicTerminal;  //configura ventana de terminal
 
   //configura editor de Panel de comando
-  InicEditorC1(edPCom); //configura panel de comandos
-  edPCom.OnSpecialLineMarkup:=@edPComSpecialLineMarkup; //solo para corregir bug de SynEdit (falla de resaltado de línea actual)
-  ePCom := TSynFacilEditor.Create(edPCom,'SinNombre','sh');   //Crea Editor
-  ePCom.OnChangeEditorState:=@ChangeEditorState;
-  ePCom.OnKeyUp:=@edPComKeyUp;    //evento
-  ePCom.OnKeyDown:=@edPComKeyDown; //evento
-  ePcom.OnFileOpened:=@ePComFileOpened;
-  ePCom.PanCursorPos := StatusBar1.Panels[2];  //panel para la posición del cursor
-  ePCom.PanLangName := StatusBar1.Panels[4];  //lenguaje
-
-  ePCom.NewFile;   //para actualizar estado
-  ePCom.LoadSyntaxFromPath;
+  edPCom.OnKeyUp:=@edPComKeyUp;    //evento
+  edPCom.OnKeyDown:=@edPComKeyDown; //evento
 
   //inicia proceso
   proc := TConsoleProc.Create(StatusBar1.Panels[1]);
@@ -264,23 +173,13 @@ begin
 end;
 procedure TfrmPrincipal.FormDestroy(Sender: TObject);
 begin
-  ePCom.Free;
-  eTerm.Free;
   proc.Free;
   hlTerm.Free;
-end;
-procedure TfrmPrincipal.FormDropFiles(Sender: TObject;
-  const FileNames: array of String);
-begin
-  //Carga archivo arrastrados
-  if ePCom.SaveQuery then Exit;   //Verifica cambios
-  ePCom.LoadFile(FileNames[0]);
 end;
 procedure TfrmPrincipal.FormShow(Sender: TObject);
 begin
   TranslateMsgs := true;  //activa la traducción en los mensajes
   SetLanguage('en');
-  Config.SetLanguage('en');
   frmEditMacros.SetLanguage('en');
   //aquí ya sabemos que Config está creado. Lo configuramos
   Config.edTerm := edTerm;  //pasa referencia de editor.
@@ -288,15 +187,11 @@ begin
   Config.edMacr := frmEditMacros.ed;
   Config.prTel := proc;     //pasa referencia a proceso
 
-  Config.Iniciar(ePCom.hl);  //Inicia la configuración
+  Config.Iniciar();  //Inicia la configuración
   DistribuirPantalla; //ubica componentes
   //muestra dirección IP actual
   ActualizarInfoPanel0;
-  //actualiza menús
-  mnEjecMacroClick(self);
-  mnAbrMacroClick(self);
 
-  ePComFileOpened; //para actualizar barra de título
 end;
 
 procedure TfrmPrincipal.InicTerminal;
@@ -333,56 +228,21 @@ procedure TfrmPrincipal.edTermSpecialLineMarkup(Sender: TObject; Line: integer;
 begin
 //vacío
 end;
-procedure TfrmPrincipal.ePComFileOpened;
-begin
-  ePCom.LoadSyntaxFromPath;  //para que busque el archivo apropiado
-  //actualiza encabezado
-  Caption := 'TTerm';
-end;
 procedure TfrmPrincipal.edPComSpecialLineMarkup(Sender: TObject; Line: integer;
   var Special: boolean; Markup: TSynSelectedColor);
 begin
 //vacío
 end;
-procedure TfrmPrincipal.edTermEnter(Sender: TObject);
-begin
-  ChangeEditorState;  //para actualizar los menús
-  eTerm.PanCursorPos := nil; //para forzar a actualiazr la posición del cursor
-  eTerm.PanCursorPos := StatusBar1.Panels[2];
-end;
 
 /////////////// Funciones para manejo de macros///////////////
-procedure TfrmPrincipal.mnEjecMacroClick(Sender: TObject);
-begin
-  mnEjecMacro.Clear;
-  LeeArchEnMenu(rutMacros + DirectorySeparator +'*.ttm', mnEjecMacro,@itemEjecMacro);
-end;
-procedure TfrmPrincipal.mnAbrMacroClick(Sender: TObject);
-begin
-  mnAbrMacro.Clear;
-  LeeArchEnMenu(rutMacros + DirectorySeparator +'*.ttm', mnAbrMacro,@itemAbreMacro);
-end;
-
-procedure TfrmPrincipal.itemEjecMacro(Sender: TObject);
-//Ejecuta la macro elegida
-begin
-  frmEditMacros.Ejecutar(rutMacros + DirectorySeparator + TMenuItem(Sender).Caption);
-end;
-procedure TfrmPrincipal.itemAbreMacro(Sender: TObject);
-begin
-  frmEditMacros.Show;
-  frmEditMacros.Abrir(rutMacros + DirectorySeparator + TMenuItem(Sender).Caption);
-end;
 procedure TfrmPrincipal.PosicionarCursor(HeightScr: integer);
 //Coloca el cursor del editor, en la misma posición que tiene el cursor del
 //terminal VT100 virtual.
 var
   yvt: Integer;
 begin
-  if Config.fcPantTerm.curSigPrm then begin
-    yvt := edTerm.Lines.Count-HeightScr-1;  //calcula fila equivalente a inicio de VT100
-    edTErm.CaretXY := Point(proc.term.curX, yvt+proc.term.CurY+1);
-  end;
+  yvt := edTerm.Lines.Count-HeightScr-1;  //calcula fila equivalente a inicio de VT100
+  edTErm.CaretXY := Point(proc.term.curX, yvt+proc.term.CurY+1);
 end;
 
 procedure TfrmPrincipal.procLlegoPrompt(prmLine: string; pIni: TPoint; HeightScr: integer);
@@ -455,12 +315,7 @@ begin
        proc.Sendln('');  //se envía con la configuración de saltos
      VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN, VK_HOME, VK_END : begin
          //teclas direccionales
-         if Config.fcPantTerm.interDirec then begin
-           //se interceptan, no se envían
-         end else begin  //se envían como secuencias de escape
-           proc.SendVT100Key(Key, Shift);
-           Key := 0;  //para que nos e procesen
-         end;
+        //se interceptan, no se envían
        end;
      VK_TAB:
        if Shift = [ssCtrl] then begin  //Ctrl+Tab
@@ -574,51 +429,6 @@ begin
    //refresca para asegurarse, porque el panel 0 está en modo gráfico
    StatusBar1.InvalidatePanel(0,[ppText]);
 end;
-
-function TfrmPrincipal.ConexDisponible: boolean;
-//Indica si la conexión está en estado ECO_READY, es decir, que puede
-//recibir un comando
-begin
-   Result := (proc.state = ECO_READY);
-end;
-
-function TfrmPrincipal.BuscaPromptArr: integer;
-//Busca el primer prompt desde la posición actual hacia arriba
-//Si no lo encuentra devuelve -1
-var
-  cy: Integer;
-begin
-  cy := edterm.CaretY;
-  repeat
-    dec(cy)
-  until (cy<1) or config.ContienePrompt(edTerm.Lines[cy-1]);
-  if cy<1 then exit(-1) else exit(cy);
-end;
-function TfrmPrincipal.BuscaPromptAba: integer;
-//Busca el primer prompt desde la posición actual hacia abajo
-//Si no lo encuentra devuelve -1
-var
-  cy: Integer;
-begin
-  cy := edterm.CaretY;
-  repeat
-    inc(cy)
-  until (cy>edTerm.Lines.Count) or config.ContienePrompt(edTerm.Lines[cy-1]);
-  if cy>edTerm.Lines.Count then exit(-1) else exit(cy);
-end;
-function TfrmPrincipal.BuscaUltPrompt: integer;
-//Busca el último prompt de todo el terminal
-//Si no lo encuentra devuelve -1
-var
-  cy: Integer;
-begin
-  cy := edterm.Lines.Count+1;
-  repeat
-    dec(cy)
-  until (cy<1) or config.ContienePrompt(edTerm.Lines[cy-1]);
-  if cy<1 then exit(-1) else exit(cy);
-end;
-
 procedure TfrmPrincipal.edPComKeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 begin
@@ -649,7 +459,6 @@ begin
     end;
   end;
 end;
-
 procedure TfrmPrincipal.DistribuirPantalla;
 //Redistribuye los paneles de la pantalla
 begin
@@ -663,55 +472,10 @@ begin
   Panel2.Align:=alClient;
   if Panel1.Width > Trunc(0.9*self.Width) then Panel1.Width := Trunc(0.5*self.Width);
 end;
-procedure TfrmPrincipal.ChangeEditorState;
-//Si llega aquí es porque cambia el estado del editor. Actualiza los menús:
-begin
-  if edPCom.Focused then begin
-    //este es el único editor que acepta Undo/Redo
-    acEdUndo.Enabled:=ePCom.CanUndo;
-    acEdRedo.Enabled:=ePCom.CanRedo;
-    acEdPaste.Enabled := ePCom.CanPaste;
-    //Cut Copy son acciones predefinidas, se activan solas.
-  end else begin
-    acEdUndo.Enabled:=false;
-    acEdRedo.Enabled:=false;
-    acEdPaste.Enabled := true;   //para poder pegar lo que haya en el portapapeles
-  end;
-
-
-end;
 /////////////////////// ACCIONES ////////////////////////
 procedure TfrmPrincipal.AcArcSalirExecute(Sender: TObject);
 begin
   Close;
-end;
-
-procedure TfrmPrincipal.acEdUndoExecute(Sender: TObject);
-begin
-  if edPCom.Focused then begin //El único editor que acepta Undo/Redo
-    ePCom.Undo;
-  end;
-end;
-procedure TfrmPrincipal.acEdRedoExecute(Sender: TObject);
-begin
-  if edPCom.Focused then begin //El único editor que acepta Undo/Redo
-    ePCom.Redo;
-  end;
-end;
-procedure TfrmPrincipal.acEdPasteExecute(Sender: TObject);
-begin
-  if edpCom.Focused then begin
-    ePCom.Paste;  //pega en el editor
-  end;
-  if edTerm.Focused then begin
-    proc.SendLn(ClipBoard.AsText);  //envía al terminal
-  end;
-end;
-procedure TfrmPrincipal.edPComEnter(Sender: TObject);  //Toma el enfoque
-begin
-  ChangeEditorState;  //para actualizar los menús
-  ePCom.PanCursorPos := nil; //para forzar a actualiazr la posición del cursor
-  ePCom.PanCursorPos := StatusBar1.Panels[2];
 end;
 procedure TfrmPrincipal.AcVerEdiMacExecute(Sender: TObject);
 begin
@@ -733,29 +497,6 @@ begin
   end else begin  //no hay selección, envía la línea actual
     lin := edPCom.LineText;  //línea actual
     EnviarTxt(lin);
-  end;
-end;
-procedure TfrmPrincipal.AcPCmEnvTodExecute(Sender: TObject);
-//Envía todo el texto
-begin
-  if proc = nil then exit ;
-  if edPCom.SelAvail then begin
-    //hay selección
-    frmSelFuente.optSel.Checked := true;
-    frmSelFuente.optLin.Enabled := false;
-    frmSelFuente.ShowModal;
-    If frmSelFuente.cancelado Then Exit;  //cancelado
-    //se eligió
-    If frmSelFuente.optTod.Checked Then begin  //todo
-      EnviarTxt(edPCom.Text);
-    end else if frmSelFuente.optSel.Checked Then begin  //selección
-      EnviarTxt(edPCom.SelText);
-    end Else begin   //solo la línea actual
-      EnviarTxt(edPCom.LineText);
-    End;
-  end else begin
-    //no hay selección, envía todo
-    EnviarTxt(edPCom.Text);
   end;
 end;
 procedure TfrmPrincipal.acPCmEnvCtrCExecute(Sender: TObject); //Envía Ctrl+C
@@ -794,10 +535,6 @@ procedure TfrmPrincipal.AcTerEnvCtrlCExecute(Sender: TObject);  //Ctrl+C
 begin
   proc.Send(#3);
 end;
-procedure TfrmPrincipal.AcTerEnvEnterExecute(Sender: TObject);  //Enter
-begin
-  proc.SendLn('');
-end;
 procedure TfrmPrincipal.AcTerEnvCRExecute(Sender: TObject);
 begin
   proc.Send(#13);
@@ -805,10 +542,6 @@ end;
 procedure TfrmPrincipal.AcTerEnvLFExecute(Sender: TObject);
 begin
   proc.Send(#10);
-end;
-procedure TfrmPrincipal.AcTerEnvCRLFExecute(Sender: TObject);
-begin
-  proc.Send(#13#10);
 end;
 procedure TfrmPrincipal.AcTerLimBufExecute(Sender: TObject);
 //limpia la salida
@@ -827,33 +560,15 @@ procedure TfrmPrincipal.SetLanguage(lang: string);
 begin
   case lowerCase(lang) of
   'es': begin
-      mnArchivo.Caption:='&Archivo';
-      mnEdicion.Caption:='&Edición';
-      mnVer.Caption:='&Ver';
       mnPanCom.Caption:='Panel de &Comandos';
       mnTerminal.Caption:='&Terminal';
       mnHerram.Caption:='&Herramientas';
 
-      mnLenguajes.Caption:='&Lenguaje';
-      mnEjecMacro.Caption:='&Ejecutar Macro';
-      mnAbrMacro.Caption:='&Abrir Macro';
       mnTerSend.Caption:='&Enviar';
-      MenuItem82.Caption:='Copiar Elemento';
       MenuItem72.Caption:='&Enviar';
 
       AcArcSalir.Caption := '&Salir';
-      acEdUndo.Caption := '&Deshacer';
-      acEdRedo.Caption := '&Rehacer';
-      acEdCut.Caption := 'Cor&tar';
-      acEdCopy.Caption := '&Copiar';
-      acEdPaste.Caption := '&Pegar';
-      acEdSelecAll.Caption := 'Seleccionar &Todo';
-      acEdModCol.Caption := 'Modo Columna';
-      AcVerPanCom.Caption := '&Panel de Comandos';
-      AcVerBarEst.Caption := 'Barra de estado';
-      AcVerEdiMac.Caption := 'Editor de &Macros';
       AcPCmEnvLin.Caption := 'Enviar &Línea';
-      AcPCmEnvTod.Caption := 'Enviar &Todo';
       acPCmEnvCtrC.Caption := 'Enviar Ct&rl+C';
       AcTerConec.Caption := '&Conectar';
       AcTerDescon.Caption := '&Desconectar';
@@ -861,41 +576,19 @@ begin
       AcTerDetPrm.Caption := 'Detectar &Prompt';
       AcTerConfig.Caption := 'Confi&gurar';
       AcTerEnvCtrlC.Caption := 'Enviar &Ctrl-C';
-      AcTerEnvEnter.Caption := 'Enviar &Enter';
-      AcTerEnvCR.Caption := 'Enviar &CR';
-      AcTerEnvCRLF.Caption := 'Enviar CR+&LF';
-      AcTerEnvLF.Caption := 'Enviar LF';
       AcHerCfg.Caption := 'Confi&guración...';
       dicClear;  //los mensajes ya están en español
     end;
   'en': begin
-      mnArchivo.Caption:='&File';
-      mnEdicion.Caption:='&Edit';
-      mnVer.Caption:='&View';
       mnPanCom.Caption:='&Command Panel';
       mnTerminal.Caption:='&Terminal';
       mnHerram.Caption:='&Tools';
 
-      mnLenguajes.Caption:='&Language';
-      mnEjecMacro.Caption:='&Execute Macro';
-      mnAbrMacro.Caption:='&Open Macro';
       mnTerSend.Caption:='&Send';
-      MenuItem82.Caption:='Copy Element';
       MenuItem72.Caption:='&Send';
 
       AcArcSalir.Caption := '&Exit';
-      acEdUndo.Caption := '&Undo';
-      acEdRedo.Caption := '&Redo';
-      acEdCut.Caption := 'C&ut';
-      acEdCopy.Caption := '&Copy';
-      acEdPaste.Caption := '&Paste';
-      acEdSelecAll.Caption := 'Select &All';
-      acEdModCol.Caption := 'Column Mode';
-      AcVerPanCom.Caption := '&Comand Panel';
-      AcVerBarEst.Caption := 'Status Bar';
-      AcVerEdiMac.Caption := '&Macro Editor';
       AcPCmEnvLin.Caption := 'Send &Line';
-      AcPCmEnvTod.Caption := 'Send &All';
       acPCmEnvCtrC.Caption := 'Send Ct&rl+C';
       AcTerConec.Caption := '&Connect';
       AcTerDescon.Caption := '&Disconnect';
@@ -903,10 +596,6 @@ begin
       AcTerDetPrm.Caption := 'Detect &Prompt';
       AcTerConfig.Caption := 'Confi&gure';
       AcTerEnvCtrlC.Caption := 'Send &Ctrl-C';
-      AcTerEnvEnter.Caption := 'Send &Enter';
-      AcTerEnvCR.Caption := 'Send &CR';
-      AcTerEnvCRLF.Caption := 'Send CR+&LF';
-      AcTerEnvLF.Caption := 'Send LF';
       AcHerCfg.Caption := 'Confi&gure...';
       //traducción
       dicSet('Hay una conexión abierta. ¿Cerrarla?','There is an opened connection. Close?');
@@ -918,12 +607,6 @@ begin
       dicSet('No hay conexión disponible','No available connection');
       dicSet('Tiempo de espera agotado','Timeout');
       dicSet('Error detectando el prompt del comando. ','Error detecting prompt.');
-      dicSet('Probablemente deba ampliar la cantidad de líneas de la pantalla.',
-             'Probably you must increase the max number of lines in screen');
-      dicSet('Archivo de sesión|*.ses|Todos los archivos|*.*','Sesion file|*.ses|All files|*.*');
-      dicSet('El archivo %s ya existe.' + LineEnding + '¿Deseas sobreescribirlo?',
-             'File % salready exists. Overwrite?');
-      dicSet('#Archivo de comandos','#Command file');
     end;
   end;
 end;

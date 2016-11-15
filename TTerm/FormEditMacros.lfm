@@ -7,13 +7,10 @@ object frmEditMacros: TfrmEditMacros
   ClientHeight = 348
   ClientWidth = 518
   Menu = MainMenu1
-  OnCloseQuery = FormCloseQuery
-  OnCreate = FormCreate
-  OnDestroy = FormDestroy
   LCLVersion = '1.6.0.4'
   inline ed: TSynEdit
     Left = 0
-    Height = 299
+    Height = 322
     Top = 26
     Width = 518
     Align = alClient
@@ -511,29 +508,6 @@ object frmEditMacros: TfrmEditMacros
       end
     end
   end
-  object StatusBar1: TStatusBar
-    Left = 0
-    Height = 23
-    Top = 325
-    Width = 518
-    Panels = <    
-      item
-        Width = 70
-      end    
-      item
-        Width = 80
-      end    
-      item
-        Width = 70
-      end    
-      item
-        Width = 70
-      end    
-      item
-        Width = 50
-      end>
-    SimplePanel = False
-  end
   object ToolBar1: TToolBar
     Left = 0
     Height = 26
@@ -543,7 +517,7 @@ object frmEditMacros: TfrmEditMacros
     Images = ImageList1
     ParentShowHint = False
     ShowHint = True
-    TabOrder = 2
+    TabOrder = 1
     object ToolButton1: TToolButton
       Left = 1
       Top = 2
@@ -646,7 +620,6 @@ object frmEditMacros: TfrmEditMacros
       Caption = '&Abrir...'
       Hint = 'Abrir Archivo'
       ImageIndex = 9
-      OnExecute = acArcAbrirExecute
       ShortCut = 16449
     end
     object acArcGuardar: TAction
@@ -654,7 +627,6 @@ object frmEditMacros: TfrmEditMacros
       Caption = '&Guardar'
       Hint = 'Guardar Archivo'
       ImageIndex = 6
-      OnExecute = acArcGuardarExecute
       ShortCut = 16455
     end
     object acArcGuaCom: TAction
@@ -662,7 +634,6 @@ object frmEditMacros: TfrmEditMacros
       Caption = 'G&uardar Como...'
       Hint = 'Guardar como...'
       ImageIndex = 12
-      OnExecute = acArcGuaComExecute
     end
     object acArcSalir: TAction
       Category = 'Arc'
@@ -708,19 +679,6 @@ object frmEditMacros: TfrmEditMacros
       ImageIndex = 11
       ShortCut = 16470
     end
-    object acEdiSelecAll: TAction
-      Category = 'Edit'
-      Caption = 'Seleccionar &Todo'
-      Hint = 'Selecciona todo el texto'
-      OnExecute = acEdiSelecAllExecute
-      ShortCut = 16453
-    end
-    object acEdiModCol: TAction
-      Category = 'Edit'
-      Caption = 'Modo Columna'
-      Hint = 'Entra al modo columna'
-      ImageIndex = 15
-    end
     object acVerNumLin: TAction
       Category = 'Ver'
       Caption = 'Ver &Núm. de Línea'
@@ -728,23 +686,6 @@ object frmEditMacros: TfrmEditMacros
     object acVerBarEst: TAction
       Category = 'Ver'
       Caption = 'Ver Barra de &Estado'
-    end
-    object acBusBuscar: TAction
-      Category = 'Search'
-      Caption = 'Buscar...'
-      ImageIndex = 17
-      ShortCut = 16450
-    end
-    object acBusBusSig: TAction
-      Category = 'Search'
-      Caption = 'Buscar &Siguiente'
-      ImageIndex = 18
-      ShortCut = 114
-    end
-    object acBusRem: TAction
-      Category = 'Search'
-      Caption = '&Remplazar...'
-      ShortCut = 16466
     end
     object acVerPanArc: TAction
       Category = 'Ver'
@@ -2087,7 +2028,9 @@ object frmEditMacros: TfrmEditMacros
         Caption = '-'
       end
       object MenuItem16: TMenuItem
-        Action = acEdiSelecAll
+        Caption = 'Seleccionar &Todo'
+        Hint = 'Selecciona todo el texto'
+        ShortCut = 16453
       end
     end
     object mnHerram: TMenuItem
@@ -2249,31 +2192,6 @@ object frmEditMacros: TfrmEditMacros
           9E709C9C9CD69B9B9BFB999999FBFFFFFF00FFFFFF00FFFFFF00
         }
       end
-    end
-  end
-  object PopupMenu1: TPopupMenu
-    left = 304
-    top = 104
-    object MenuItem21: TMenuItem
-      Action = acEdiUndo
-    end
-    object MenuItem27: TMenuItem
-      Action = acEdiRedo
-    end
-    object MenuItem26: TMenuItem
-      Caption = '-'
-    end
-    object MenuItem25: TMenuItem
-      Action = acEdiCut
-    end
-    object MenuItem24: TMenuItem
-      Action = acEdiCopy
-    end
-    object MenuItem22: TMenuItem
-      Action = acEdiPaste
-    end
-    object MenuItem28: TMenuItem
-      Action = acEdiSelecAll
     end
   end
 end

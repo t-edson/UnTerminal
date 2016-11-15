@@ -10,7 +10,7 @@ interface
 
 uses
   SysUtils, Forms, Graphics, SynEdit, Buttons, ComCtrls,
-  UnTerminal, MisUtils, SynFacilCompletion,
+  UnTerminal, MisUtils,
   FrameCfgConex, frameCfgDetPrompt, frameCfgPantTerm,
   ConfigFrame;
 
@@ -48,14 +48,13 @@ type
     fcConex   : TFraConexion;   //conexión
     fcPantTerm: TfraPantTerm;
     fcDetPrompt: TfraDetPrompt;
-    procedure Iniciar(hl0: TSynFacilComplet);
+    procedure Iniciar;
     procedure LeerArchivoIni(iniFile: string='');
     procedure escribirArchivoIni(iniFile: string='');
     procedure Configurar(Id: string='');
     function ContienePrompt(const linAct, prIni, prFin: string): integer;
     function ContienePrompt(const cad: string): boolean;
     function EsPrompt(const cad: string): boolean;
-    procedure SetLanguage(lang: string);
   end;
 
 var
@@ -91,7 +90,7 @@ procedure TConfig.FormShow(Sender: TObject);
 begin
   MostEnVentana;   //carga las propiedades en el frame
 end;
-procedure TConfig.Iniciar(hl0: TSynFacilComplet);
+procedure TConfig.Iniciar;
 //Inicia el formulario de configuración. Debe llamarse antes de usar el formulario y
 //después de haber cargado todos los frames.
 begin
@@ -227,25 +226,6 @@ begin
     msjError := SavePropToFile_AllFrames(self, arINI)
   else
     msjError := SavePropToFile_AllFrames(self, iniFile);
-end;
-
-procedure TConfig.SetLanguage(lang: string);
-//Rutina de traducción
-begin
-  fcDetPrompt.SetLanguage(lang);
-
-  case lowerCase(lang) of
-  'es': begin
-      TTreeNodeFromId('1',TreeView1).Text:='Conexión';
-      TTreeNodeFromId('2',TreeView1).Text:='Detec.de Prompt';
-      TTreeNodeFromId('3',TreeView1).Text:='Terminal';
-    end;
-  'en': begin
-      TTreeNodeFromId('1',TreeView1).Text:='Connection';
-      TTreeNodeFromId('2',TreeView1).Text:='Prompt detection';
-      TTreeNodeFromId('3',TreeView1).Text:='Terminal';
-    end;
-  end;
 end;
 
 end.
