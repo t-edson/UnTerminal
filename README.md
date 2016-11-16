@@ -1,4 +1,4 @@
-UnTerminal 0.9b
+UnTerminal 0.9
 ==============
 
 Unidad en Lazarus, para el control de procesos tipo consola, con detección de "prompt".
@@ -14,7 +14,13 @@ Los procesos a controlar con esta unidad deben cumplir las siguientes condicione
 
 Los procesos que se pueden controlar con esta unidad son diversos, como clientes de telnet, ftp, o el mismo shell del sistema operativo, como se muestra en el ejemplo incluido.
 
-En la versión actual no se puede leer el flujo de salida de errores. Solo se controlan los flujos de entrada y de salida normales.
+En la versión actual no se puede leer el flujo de salida de errores independientemente. Solo se controlan dos flujos: 
+
+1. De entrada 
+2. De salida (salida estándar y de errores).
+
+Conexión
+--------
 
 Para conectarse mediante un proceso, se debe crear una instancia de TConsoleProc, y seguir la secuencia de conexión:
 
@@ -284,15 +290,16 @@ Este método de trabajo también también puede sufrir del problema del método 
 
 Aunque el efecto de este caso extremo puede no ser muy crítico, ya que solo generará una línea adicional con el prompt en el editor de salida. Esta línea adicional no quitará la legibilidad del código pero de todas formas, es una falta de fidelidad en la salida del proceso.
   
-Manejo del Terminal
+Manejo del Terminal 
 ===================
 
-Los comandos, se envían al proceso con los método Send(), SendLn() o SendFile(). SendLn() es similar a Send(), pero envía adicionalmente un salto de línea al final. El salto de línea es necesario para que el proceso del terminal reconozca que se le ha enviado un comando.
+## Envío de comandos
 
-El salto de línea a enviar se configura con la propiedad 'sendCRLF'. Por defecto el salto de línea es el caracter LF, pero si 'sendCRLF' se pone a TRUE, el salto de línea enviado con SendLn(), es CR+LF. 'sendCRLF', solo tiene efecto cuando se usa SendLn() o SendFile(). 
-Desde luego, que se puede enviar cualquier tipo de salto de línea o caracter si es que se usa el método Send().
+Los comandos (o cualquier cadena en general), se envían al proceso con los método Send(), SendLn() o SendFile(). SendLn() es similar a Send(), pero envía adicionalmente un salto de línea al final. El salto de línea es necesario, en la mayoría de procesos, para que se reconozca a la cadena enviada, como un comando.
 
-El método SendFile(), envía el contendio completo de un archivo al terminal. El salto de línea enviado depende del valor de 'sendCRLF'.
+El método SendFile(), envía el contenido completo de un archivo al terminal.
+
+El salto de línea a enviar depende del valor de "LineDelimSend".
 
 Para enviar caracteres de control, se debe usar el método SendVT100Key(), porque los caracteres de control, deben convertirse primero en secuencias de escape, al menos para los aplicativos que reconozcan las secuencias de escape. Por ejemplo si se envía la tecla direccional derecha, con SendVT100Key(), primero se transformará en la secuencia ESC+[C.
 
@@ -309,11 +316,51 @@ clase. Solo se mantienen las líneas de trabajo del terminal VT100 en el objeto 
 Así se ahorra memoria, porque por lo general, el texto de salida está destinado a ser almacenado en algún otro control como un editor de texto o una grilla.
 Es responsabilidad del programador, limitar el tamaño de los datos almacenados.
 
-El evento OnLineCompleted(), se genera cuando se detecta la llegada del caracter Chr(13) que es el salto de línea. Además pasa como parámetro a la línea actual. Este evento puede servir para detectar cuando ha llegado una línea completa.
-
 Los datos de salida que llegan por el terminal, se recuperan por sondeo del flujo de salida. Por defecto, se explora la salida en intervalos de 50 milisegundos(20 veces por segundo), y usando un "buffer" interno de 2048 bytes.
 
 Para cambiar el periodo de sondeo de la salida del proceso, se debe cambiar el valor de la propiedad 'clock.interval' (en milisegundos). Se puede trabajar bien con periodos de 100 mseg o aún más, si la cantidad de información es baja. Pero no es recomendable bajar a menos de 50 mseg, porque se genera una carga adicional de CPU (aún cuando no llegen datos). Solo se debería bajar este periodo cuando se requiera procesar los datos de llegada, de forma inmediata.
+
+## Saltos de línea al enviar
+
+Dentro de UnTerminal, se pueden configurar los caracteres de salto de línea que se usarán, tanto para el envío, como para la recepción.
+
+Para configurar los caracteres de salto de línea, en el envío, se debe usar la propiedad "LineDelimSend", que puede tomar los siguientes valores: 
+
+* LDS_CRLF   //Envía los caracteres CR y LF
+* LDS_CR     //Envía solo CR (caracter #13)
+* LDS_LF     //Envía solo LF (caracter #10) 
+
+Configurar el salto de línea para envío, implica que se agregarán los caracteres configurados, cada vez que se usen los métodos TConsoleProc.SendLn o TConsoleProc.SendFile, independientemente del tipo de delimitador que se haya incluido en la cadena. Lso siguientes ejemplos, ilustrarán el conportamiento de SendLn, cuandos se configura "LineDelimSend".
+
+Si se ha definido LineDelimSend en LDS_LF, entonces:
+
+SendLn('aaa');             //Enviará realmente 'aaa'#10
+SendLn('aaa'#10);          //Enviará realmente 'aaa'#10
+SendLn('aaa'#13);          //Enviará realmente 'aaa'#10
+SendLn('aaa'#13#10);       //Enviará realmente 'aaa'#10
+SendLn('aaa'#13#10'bbb');  //Enviará realmente 'aaa'#10'bbb'#10
+
+Como se ve, cuando se configura un caracter de salto de línea, se cambian todos los saltos de línea para que se use solo el salto de línea configurado.
+
+En general, se debe poner a "LineDelimSend" en LDS_LF, para los procesos en Linux/UNIX y se debe dejar en LDS_CRLF, para los procesos en Windows.
+
+La propiedad "LineDelimSend", no tiene efecto sobre el método TConsoleProc.Send(), que seguirá enviando siempre, los caracteres indicados.
+
+## Saltos de línea al recibir
+
+Para configurar los caracteres de salto de línea, en la recepción, se debe usar la propiedad "LineDelimRecv", que puede tomar los siguientes valores: 
+
+* LDR_CRLF  //El salto de línea es CR-LF (o LF-CR)
+* LDR_CR    //El salto de línea es este caracter. Se ignora LF
+* LDR_LF    //El salto de línea es este caracter. Se ignora CR
+* LDR_CR_LF //El salto de línea es este CR o LF
+   
+Cuando se configura "LineDelimRecv", se estará indicando a las rutinas de recepción, cómo es que deben interpretar los caracteres CR y LF. Si por ejemplo se configura a "LineDelimRecv" en LDR_LF, entonces cada vez que se reciba el caracter LF, se interpretará como un salto de línea, ignorando al caracter CR.
+
+En general, se debe poner a "LineDelimRecv" en LDR_LF, para los procesos en Linux/UNIX y se debe dejar en LDR_CRLF, para los procesos en Windows.
+
+El evento TTermVT100.OnLineCompleted(), se genera cuando se detecta la llegada del caracter (o caracteres) de salto de línea. Además se pasa como parámetro, a la línea actual. 
+
 
 # Detección del Prompt
 
