@@ -33,32 +33,16 @@ inherited fraPantTerm: TfraPantTerm
     Width = 56
     TabOrder = 1
   end
-  object chkInterDirec: TCheckBox[4]
-    Left = 16
-    Height = 19
-    Top = 72
-    Width = 162
-    Caption = '&Intercepts directionals keys'
-    TabOrder = 2
-  end
-  object chkCurSigPrmpt: TCheckBox[5]
-    Left = 16
-    Height = 19
-    Top = 104
-    Width = 189
-    Caption = 'Terminal Cursor &follows Prompt'
-    TabOrder = 3
-  end
-  object edTpoMax: TEdit[6]
+  object edTpoMax: TEdit[4]
     Left = 176
     Height = 23
     Top = 144
     Width = 56
     Alignment = taRightJustify
-    TabOrder = 4
+    TabOrder = 2
     Text = 'edTpoMax'
   end
-  object Label2: TLabel[7]
+  object Label2: TLabel[5]
     Left = 16
     Height = 15
     Top = 148

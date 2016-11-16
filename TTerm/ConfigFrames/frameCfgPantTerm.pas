@@ -11,8 +11,6 @@ type
   { TfraPantTerm }
 
   TfraPantTerm = class(TCfgFrame)
-    chkCurSigPrmpt: TCheckBox;
-    chkInterDirec: TCheckBox;
     edTpoMax: TEdit;
     Label1: TLabel;
     Label2: TLabel;
@@ -25,8 +23,6 @@ type
   public
     maxLinTer : integer;  //máxima cantidad de líneas que se nantienen en el terminal
     maxColTer : integer;  //máxima cantidad de columnas que se muestran en el terminal
-    interDirec: boolean;  //interceptar teclas direccionales
-    curSigPrm : boolean;  //cursor sigue a prompt
     TpoMax    : integer;
     procedure Iniciar(secINI0: string; p0: TConsoleProc ); //Inicia el frame
   end;
@@ -46,8 +42,6 @@ begin
   Asoc_Int_TEdit(@maxLinTer ,txtMaxLinT,'maxLinTer',5000, 200,MAX_LIN_TER);  {menos de 200 líneas
                   puede causar problemas con la rutina de limitación de tamaño}
   Asoc_Int_TEdit(@maxColTer ,txtMaxColT,'maxColTer',1000, 80,10000);
-  Asoc_Bol_TChkBox(@interDirec,chkInterDirec,'interDirec',true);
-  Asoc_Bol_TChkBox(@curSigPrm,chkCurSigPrmpt,'curSigPrm',true);
   Asoc_Int_TEdit(@TpoMax, edTpoMax, 'TpoMax', 10, 1, 180);
 end;
 
