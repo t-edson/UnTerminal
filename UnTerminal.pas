@@ -56,9 +56,9 @@ TPrompMatch = (
 
 //Tipo de delimitador de línea a enviar
 TUtLineDelSend = (
-   LDS_CRLF,
-   LDS_CR,
-   LDS_LF
+   LDS_CRLF,   //Envía los caracteres CR y LF
+   LDS_CR,     //Envía solo CR
+   LDS_LF      //Envía solo LF
 );
 //Tipo de delimitador de línea a recibir
 TUtLineDelRecv = (
