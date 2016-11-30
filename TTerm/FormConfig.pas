@@ -39,7 +39,6 @@ type
     edTerm  : TSynEdit;    //referencia al editor SynEdit
     edPCom  : TSynEdit;    //referencia al editor panel de comando
     edMacr  : TSynEdit;    //referencia al editor panel de comando
-    edRemo  : TSynEdit;    //referencia al editor remoto
     prTel   : TConsoleProc;
     //frames de configuración
     fcConnection: TfraConnection;

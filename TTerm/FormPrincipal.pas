@@ -22,7 +22,6 @@ type
     AcTerConec: TAction;
     AcTerLimBuf: TAction;
     AcPCmEnvLin: TAction;
-    AcTerConfig: TAction;
     acPCmEnvCtrC: TAction;
     AcTerEnvCtrlC: TAction;
     AcTerEnvCR: TAction;
@@ -42,14 +41,10 @@ type
     MenuItem59: TMenuItem;
     mnTerSend: TMenuItem;
     MenuItem68: TMenuItem;
-    MenuItem69: TMenuItem;
     MenuItem70: TMenuItem;
-    MenuItem71: TMenuItem;
     MenuItem72: TMenuItem;
     MenuItem73: TMenuItem;
-    MenuItem74: TMenuItem;
     MenuItem75: TMenuItem;
-    MenuItem76: TMenuItem;
     MenuItem79: TMenuItem;
     MenuItem80: TMenuItem;
     MenuItem81: TMenuItem;
@@ -80,12 +75,10 @@ type
     ToolButton6: TToolButton;
     ToolButton9: TToolButton;
     procedure AcArcSalirExecute(Sender: TObject);
-    procedure AcPcmConfigExecute(Sender: TObject);
     procedure acPCmEnvCtrCExecute(Sender: TObject);
     procedure AcPCmEnvLinExecute(Sender: TObject);
     procedure AcHerCfgExecute(Sender: TObject);
     procedure AcTerConecExecute(Sender: TObject);
-    procedure AcTerConfigExecute(Sender: TObject);
     procedure AcTerDesconExecute(Sender: TObject);
     procedure AcTerDetPrmExecute(Sender: TObject);
     procedure AcTerEnvCRExecute(Sender: TObject);
@@ -384,14 +377,14 @@ begin
         StatusBar.Canvas.Pen.Color := clWhite;
         StatusBar.Canvas.Brush.Color := clWhite;
         StatusBar.Canvas.Rectangle(Rect);
-        StatusBar.Canvas.TextRect(Rect, 2 + Rect.Left, 2 + Rect.Top, dic('Ejecutando macro'));
+        StatusBar.Canvas.TextRect(Rect, 2 + Rect.Left, 2 + Rect.Top, 'Running macro');
       end else begin
 //        StatusBar.Canvas.Font.Bold := true;
         StatusBar.Canvas.Font.Color:=clWhite;
         StatusBar.Canvas.Pen.Color := clBlue;
         StatusBar.Canvas.Brush.Color := clBlue;
         StatusBar.Canvas.Rectangle(Rect);
-        StatusBar.Canvas.TextRect(Rect, 2 + Rect.Left, 2 + Rect.Top, dic('Ejecutando macro'));
+        StatusBar.Canvas.TextRect(Rect, 2 + Rect.Left, 2 + Rect.Top, 'Running macro');
       end;
     end else begin
       StatusBar.Canvas.Font.Color:=clBlack;
@@ -503,11 +496,6 @@ procedure TfrmPrincipal.acPCmEnvCtrCExecute(Sender: TObject); //Envía Ctrl+C
 begin
   proc.Send(#3);
 end;
-procedure TfrmPrincipal.AcPcmConfigExecute(Sender: TObject);
-begin
-  Config.Configurar;
-end;
-
 procedure TfrmPrincipal.AcTerConecExecute(Sender: TObject);
 begin
   InicConect;   //inicia conexión
@@ -517,11 +505,6 @@ begin
    if not proc.Close then
      msgerr('No se puede cerrar el proceso actual.');
 end;
-procedure TfrmPrincipal.AcTerConfigExecute(Sender: TObject); //configurar
-begin
-   Config.Configurar;
-end;
-
 procedure TfrmPrincipal.AcTerDetPrmExecute(Sender: TObject); //Detecta prompt
 begin
   proc.AutoConfigPrompt;  //auto-detección
@@ -567,14 +550,11 @@ begin
       mnTerSend.Caption:='&Enviar';
       MenuItem72.Caption:='&Enviar';
 
-      AcArcSalir.Caption := '&Salir';
-      AcPCmEnvLin.Caption := 'Enviar &Línea';
       acPCmEnvCtrC.Caption := 'Enviar Ct&rl+C';
       AcTerConec.Caption := '&Conectar';
       AcTerDescon.Caption := '&Desconectar';
       AcTerLimBuf.Caption := '&Limpiar Buffer';
       AcTerDetPrm.Caption := 'Detectar &Prompt';
-      AcTerConfig.Caption := 'Confi&gurar';
       AcTerEnvCtrlC.Caption := 'Enviar &Ctrl-C';
       AcHerCfg.Caption := 'Confi&guración...';
       dicClear;  //los mensajes ya están en español
@@ -587,25 +567,18 @@ begin
       mnTerSend.Caption:='&Send';
       MenuItem72.Caption:='&Send';
 
-      AcArcSalir.Caption := '&Exit';
-      AcPCmEnvLin.Caption := 'Send &Line';
       acPCmEnvCtrC.Caption := 'Send Ct&rl+C';
       AcTerConec.Caption := '&Connect';
       AcTerDescon.Caption := '&Disconnect';
       AcTerLimBuf.Caption := '&Clean Buffer';
       AcTerDetPrm.Caption := 'Detect &Prompt';
-      AcTerConfig.Caption := 'Confi&gure';
       AcTerEnvCtrlC.Caption := 'Send &Ctrl-C';
       AcHerCfg.Caption := 'Confi&gure...';
       //traducción
       dicSet('Hay una conexión abierta. ¿Cerrarla?','There is an opened connection. Close?');
       dicSet(' - Archivo: ', ' - File: ');
-      dicSet('No se encuentra archivo: %s','File not found: %s');
       dicSet('En este momento, se está ejecutando una macro. ¿Detenerla?',
              'There is a Macro runnig. Stop it?');
-      dicSet('Ejecutando macro','Running macro');
-      dicSet('No hay conexión disponible','No available connection');
-      dicSet('Tiempo de espera agotado','Timeout');
       dicSet('Error detectando el prompt del comando. ','Error detecting prompt.');
     end;
   end;
