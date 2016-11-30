@@ -86,7 +86,7 @@ procedure Cod_StartProgram;
 //Codifica la parte inicial del programa
 begin
   sp := 0;  //inicia pila
-  Timeout := config.fcPantTerm.tpoMax;   //inicia variable
+  Timeout := config.fcConnection.TpoMax;   //inicia variable
   DetEjec := false;
   //////// variables predefinidas ////////////
   CreateVariable('timeout', 'int');
@@ -139,8 +139,7 @@ begin
 //  res.used:=false;  //No hay obligación de que la asignación devuelva un valor.
   if Upcase(p1.rVar.nom) = 'TIMEOUT' then begin
     //variable interna
-    config.fcPantTerm.TpoMax := p2.ReadInt;
-    config.fcConex.UpdateChanges;  //actualiza
+    config.fcConnection.TpoMax := p2.ReadInt;
   end;
 end;
 
@@ -180,29 +179,19 @@ begin
   //aquí se puede mover directamente res memoria sin usar el registro res
   p1.rVar.valStr := p2.ReadStr;
   //  res.used:=false;  //No hay obligación de que la asignación devuelva un valor.
-  if Upcase(p1.rVar.nom) = 'CURENDLINE' then begin
-    //variable interna
-    if UpCase(p2.ReadStr) = 'CRLF' then
-      config.fcConex.LineDelimSnd := LDS_CRLF;
-    if UpCase(p2.ReadStr) = 'CR' then
-      config.fcConex.LineDelimSnd:= LDS_CR;
-    if UpCase(p2.ReadStr) = 'LF' then
-      config.fcConex.LineDelimSnd:= LDS_LF;
-    config.fcConex.UpdateChanges;  //actualiza
-  end else if Upcase(p1.rVar.nom) = 'CURAPP' then begin
+  if Upcase(p1.rVar.nom) = 'CURAPP' then begin
     //indica aplicativo actual
-    config.fcConex.Command := p2.ReadStr;
-    config.fcConex.UpdateChanges;  //actualiza
+    config.fcConnection.Command := p2.ReadStr;
   end else if Upcase(p1.rVar.nom) = 'PROMPTSTART' then begin
     //indica aplicativo actual
-    config.fcDetPrompt.prIni:= p2.ReadStr;
-    config.fcDetPrompt.detecPrompt := true;  //por defecto
-    config.fcDetPrompt.ConfigCambios;  //actualiza
+    config.fcConnection.prIni:= p2.ReadStr;
+    config.fcConnection.detecPrompt := true;  //por defecto
+    config.fcConnection.ConfigCambios;  //actualiza
   end else if Upcase(p1.rVar.nom) = 'PROMPTEND' then begin
     //indica aplicativo actual
-    config.fcDetPrompt.prFin:= p2.ReadStr;
-    config.fcDetPrompt.detecPrompt := true;  //por defecto
-    config.fcDetPrompt.ConfigCambios;  //actualiza
+    config.fcConnection.prFin:= p2.ReadStr;
+    config.fcConnection.detecPrompt := true;  //por defecto
+    config.fcConnection.ConfigCambios;  //actualiza
   end;
 end;
 
@@ -230,8 +219,8 @@ begin
 //  res.used:=false;  //No hay obligación de que la asignación devuelva un valor.
   if Upcase(p1.rVar.nom) = 'PROMPTDETECT' then begin
     //variable interna
-    config.fcDetPrompt.detecPrompt := p2.ReadBool;
-    config.fcDetPrompt.ConfigCambios;  //actualiza
+    config.fcConnection.detecPrompt := p2.ReadBool;
+    config.fcConnection.ConfigCambios;  //actualiza
   end;
 end;
 

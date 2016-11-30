@@ -44,28 +44,4 @@ object Config: TConfig
     OnClick = bitAplicarClick
     TabOrder = 2
   end
-  object TreeView1: TTreeView
-    Left = 8
-    Height = 272
-    Top = 8
-    Width = 136
-    DefaultItemHeight = 16
-    Font.CharSet = ANSI_CHARSET
-    Font.Height = -12
-    Font.Name = 'Calibri'
-    Font.Pitch = fpVariable
-    Font.Quality = fqDraft
-    ParentFont = False
-    ReadOnly = True
-    TabOrder = 3
-    OnClick = TreeView1Click
-    Options = [tvoAutoItemHeight, tvoHideSelection, tvoKeepCollapsedNodes, tvoReadOnly, tvoShowButtons, tvoShowLines, tvoShowRoot, tvoToolTips, tvoThemedDraw]
-    Items.Data = {
-      F9FFFFFF020003000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000000000
-      0000000A000000436F6E6E656374696F6EFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-      FF0000000000000000001000000050726F6D707420646574656374696F6EFFFF
-      FFFFFFFFFFFFFFFFFFFFFFFFFFFF000000000000000000080000005465726D69
-      6E616C
-    }
-  end
 end

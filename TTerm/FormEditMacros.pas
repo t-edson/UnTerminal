@@ -151,7 +151,7 @@ begin
 end;
 procedure TfrmEditMacros.AcHerConfigExecute(Sender: TObject);
 begin
-  config.Configurar('Macros');
+  config.Configurar;
 end;
 procedure TfrmEditMacros.DetenerEjec;
 //Detiene la ejecución de la macro en curso

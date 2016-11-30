@@ -294,7 +294,7 @@ var
 begin
 //  debugln('procAddLine: ');
   edTerm.BeginUpdate();
-  if edTerm.Lines.Count> Config.fcPantTerm.maxLinTer then begin
+  if edTerm.Lines.Count> Config.fcConnection.maxLinTer then begin
     //hace espacio
     for i:= 1 to 100 do
       edTerm.Lines.Delete(0);   { TODO : Debe verificarse que no se deba eliminar tanto
@@ -416,7 +416,7 @@ end;
 procedure TfrmPrincipal.InicConect;  //Inicia la conexión actual
 begin
   //se supone que el proceso ya está configurado y listo para abrir
-  proc.Open(Config.fcConex.Command , '');  //lo abre
+  proc.Open(Config.fcConnection.Command , '');  //lo abre
   if msjError<>'' then begin
     msgerr(msjError);
   end;
@@ -425,7 +425,7 @@ end;
 procedure TfrmPrincipal.ActualizarInfoPanel0;
 //Actualiza el panel 0, con información de la conexión o de la ejecución de macros
 begin
-   StatusBar1.Panels[0].Text:='Proc: '+Config.fcConex.Command;
+   StatusBar1.Panels[0].Text:='Proc: '+Config.fcConnection.Command;
    //refresca para asegurarse, porque el panel 0 está en modo gráfico
    StatusBar1.InvalidatePanel(0,[ppText]);
 end;
@@ -505,7 +505,7 @@ begin
 end;
 procedure TfrmPrincipal.AcPcmConfigExecute(Sender: TObject);
 begin
-  Config.Configurar('3.1');
+  Config.Configurar;
 end;
 
 procedure TfrmPrincipal.AcTerConecExecute(Sender: TObject);
@@ -519,17 +519,17 @@ begin
 end;
 procedure TfrmPrincipal.AcTerConfigExecute(Sender: TObject); //configurar
 begin
-   Config.Configurar('2.1');
+   Config.Configurar;
 end;
 
 procedure TfrmPrincipal.AcTerDetPrmExecute(Sender: TObject); //Detecta prompt
 begin
   proc.AutoConfigPrompt;  //auto-detección
-  config.fcDetPrompt.DetecPrompt := proc.detecPrompt;
-  config.fcDetPrompt.prIni := proc.promptIni;
-  config.fcDetPrompt.prFin := proc.promptFin;
-  config.fcDetPrompt.TipDetec:=proc.promptMatch;
-  config.fcDetPrompt.OnUpdateChanges;  //actualiza resaltador y al mismo proceso
+  config.fcConnection.DetecPrompt := proc.detecPrompt;
+  config.fcConnection.prIni := proc.promptIni;
+  config.fcConnection.prFin := proc.promptFin;
+  config.fcConnection.TipDetec:=proc.promptMatch;
+  config.fcConnection.OnUpdateChanges;  //actualiza resaltador y al mismo proceso
 end;
 procedure TfrmPrincipal.AcTerEnvCtrlCExecute(Sender: TObject);  //Ctrl+C
 begin
