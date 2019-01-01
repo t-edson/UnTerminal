@@ -2,7 +2,7 @@
 <CONFIG>
   <ProjectSession>
     <PathDelim Value="\"/>
-    <Version Value="9"/>
+    <Version Value="11"/>
     <BuildModes Active="Debug"/>
     <Units Count="108">
       <Unit0>
@@ -31,11 +31,10 @@
         <ComponentName Value="Config"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="2"/>
         <TopLine Value="27"/>
         <CursorPos X="44" Y="41"/>
-        <FoldState Value=" T4A03 T5iA02 T8U2]DMib01 T3iI0921434 T0jCO45 T6jc021M"/>
+        <FoldState Value=" T4A03 T8U2]6Mib01 T3iI0921434 T0jCO45 T6jc021,"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -64,9 +63,10 @@
         <ComponentName Value="frmEditMacros"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
+        <IsVisibleTab Value="True"/>
         <EditorIndex Value="3"/>
-        <TopLine Value="136"/>
-        <CursorPos X="20" Y="154"/>
+        <TopLine Value="158"/>
+        <CursorPos X="24" Y="168"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
       </Unit5>
@@ -856,7 +856,7 @@
         <UsageCount Value="9"/>
       </Unit107>
     </Units>
-    <JumpHistory Count="29" HistoryIndex="28">
+    <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
         <Filename Value="FormPrincipal.pas"/>
         <Caret Line="591" Column="69" TopLine="563"/>
@@ -963,7 +963,15 @@
       <Position29>
         <Filename Value="FormConfig.pas"/>
       </Position29>
+      <Position30>
+        <Filename Value="FormConfig.pas"/>
+        <Caret Line="41" Column="44" TopLine="27"/>
+      </Position30>
     </JumpHistory>
+    <RunParams>
+      <FormatVersion Value="2"/>
+      <Modes Count="0" ActiveMode="default"/>
+    </RunParams>
   </ProjectSession>
   <Debugging>
     <BreakPoints Count="1">
