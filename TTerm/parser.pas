@@ -6,8 +6,8 @@ unit Parser;
 interface
 uses
   Classes, SysUtils, LCLType, Dialogs, lclProc, Graphics, Forms, Strutils,
-  SynEditHighlighter, SynFacilBasic, XPresParser, XpresBas, XpresTypes, XpresElements,
-  FrameCfgConex, UnTerminal,
+  SynEditHighlighter, SynFacilBasic, XpresParser, XpresBas, XpresTypes, XpresElements,
+  UnTerminal,
   MisUtils, FormConfig;
 
 type

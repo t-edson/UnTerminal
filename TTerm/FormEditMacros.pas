@@ -165,7 +165,7 @@ var
   larc: TStringList;
 begin
   larc := Tstringlist.Create;
-  larc.LoadFromFile(UTF8toSys(arc));
+  larc.LoadFromFile(arc);
   cxp.Compilar(arc, larc);
   if cxp.HayError then begin
     self.Show;   //por si no estaba visible
