@@ -1,0 +1,49 @@
+object Form1: TForm1
+  Left = 248
+  Height = 499
+  Top = 180
+  Width = 714
+  Caption = 'Form1'
+  ClientHeight = 499
+  ClientWidth = 714
+  DesignTimePPI = 120
+  OnCreate = FormCreate
+  LCLVersion = '2.0.10.0'
+  object Memo1: TMemo
+    Left = 12
+    Height = 388
+    Top = 80
+    Width = 688
+    ParentFont = False
+    ScrollBars = ssAutoBoth
+    TabOrder = 0
+  end
+  object label1: TLabel
+    Left = 15
+    Height = 20
+    Top = 15
+    Width = 52
+    Caption = 'Process:'
+    ParentColor = False
+    ParentFont = False
+  end
+  object txtProcess: TEdit
+    Left = 100
+    Height = 28
+    Top = 15
+    Width = 338
+    ParentFont = False
+    TabOrder = 1
+    Text = 'cmd /c dir'
+  end
+  object Button1: TButton
+    Left = 450
+    Height = 39
+    Top = 12
+    Width = 118
+    Caption = 'S&tart'
+    OnClick = Button1Click
+    ParentFont = False
+    TabOrder = 2
+  end
+end

@@ -8,7 +8,7 @@ object Form1: TForm1
   ClientWidth = 457
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  LCLVersion = '1.6.0.4'
+  LCLVersion = '1.8.4.0'
   object Memo1: TMemo
     Left = 8
     Height = 248
@@ -19,15 +19,15 @@ object Form1: TForm1
   end
   object label1: TLabel
     Left = 10
-    Height = 15
+    Height = 17
     Top = 10
-    Width = 43
+    Width = 57
     Caption = 'Process:'
     ParentColor = False
   end
   object txtProcess: TEdit
     Left = 64
-    Height = 23
+    Height = 27
     Top = 10
     Width = 216
     TabOrder = 1
@@ -53,8 +53,8 @@ object Form1: TForm1
   end
   object StatusBar1: TStatusBar
     Left = 0
-    Height = 23
-    Top = 373
+    Height = 21
+    Top = 375
     Width = 457
     Panels = <    
       item
@@ -64,15 +64,15 @@ object Form1: TForm1
   end
   object label2: TLabel
     Left = 8
-    Height = 15
+    Height = 17
     Top = 40
-    Width = 60
+    Width = 74
     Caption = 'Command:'
     ParentColor = False
   end
   object txtCommand: TEdit
     Left = 72
-    Height = 23
+    Height = 27
     Top = 40
     Width = 208
     TabOrder = 5

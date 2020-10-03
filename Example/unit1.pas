@@ -78,6 +78,11 @@ begin
   proc.OnRefreshLines:=@procRefreshLines;
   proc.OnAddLine:=@procAddLine;
   proc.OnChangeState:=@procChangeState;
+  {$ifdef linux}
+  txtProcess.Text:= 'bash';
+  txtCommand.Text := 'ls';
+  proc.LineDelimSend := LDS_LF;
+  {$endif}
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
@@ -117,7 +122,7 @@ var
   yvt: Integer;
   f: Integer;
 begin
-  yvt := Memo1.Lines.Count-HeightScr-1;  //calcula fila equivalente a inicio de VT100
+  yvt := Memo1.Lines.Count-HeightScr-1;  //Calculate equivalent row to start of VT100 screen
   for f:=fIni to fFin do Memo1.Lines[yvt+ f] := grilla[f];
 end;
 
