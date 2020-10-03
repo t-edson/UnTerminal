@@ -30,6 +30,8 @@ In the current version, the error output stream cannot be read independently. On
 1. Input
 2. Output (stdout and stderr).
 
+![Tito's Terminal](https://github.com/t-edson/UnTerminal/blob/1.0/screen1.png "Título de la imagen")
+
 ## Hello world
 
 The simplest code to launch a process and capture the output can be:
