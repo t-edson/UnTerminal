@@ -1,0 +1,11 @@
+UnTerminal 1.0
+==============
+Se traduce, parcialmente, el archivo README.md al inglés. 
+Se reordena el código y se traducen algunos elementos de programa y comentarios a 
+terminología inglesa.
+Se modifica TConsoleProc.RunInLoop() para hacer parametrizable la duracción del Loop
+y se le renombra como Loop().
+Se crea una nueva versión de RunInLoop() que permite leer la salida del proceso en
+una cadena.
+Se adecúan los proyectos ejemplo para trabajar en Linux.
+Se crea un nuevo proyecto ejemplo /HelloWorld.

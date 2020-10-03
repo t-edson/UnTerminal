@@ -1,16 +1,7 @@
 {
-UnTerminal 0.9b
+UnTerminal 1.0
 ===============
-Por Tito Hinostroza 07/11/2016
-* Se reemplaza el campo sendCRLF por LineDelimSend, y pasa a ser un enumerado, para tener
-más flexibilidad en la configuración.
-* Se crea la propiedad LineDelimRecv, para poder configurar el tipo de delimitador de
-línea que se debe reconocer al recibir.
-* Se modifica TTermVT100.AddData, para que reconozca los diversos delimitadores de
-línea.
-* Se crean los campos TTermVT100.bhvLF y TTermVT100.bhvCR, para poder flexibilizar el
-comportamiento de los caracteres de salto ed línea.
-* Se reordenan los campos en la declaración de TConsoleProc.
+Por Tito Hinostroza 02/10/2019
 
 Description
 ===========
@@ -33,7 +24,7 @@ unit UnTerminal;
 {$mode objfpc}{$H+}
 interface
 uses  Classes, SysUtils, Process, ExtCtrls, Dialogs, Graphics, ComCtrls,
-     LCLProc, LCLType, types, Strutils, TermVT;
+     LCLProc, LCLType, TermVT, types, Strutils;
 const
   UBLOCK_SIZE = 2048;    //Tamaño de bloque de lectura de salida de proceso
 
@@ -90,12 +81,18 @@ private
   nLeidos : LongInt;
   lstTmp  : TStringList;
 
-  cAnim   : integer;      //contador para animación de ícono de estado
-  angA    : integer;      //contador para animación de ícono de estado
-  LoopList: TStringList;  //lista de salida para cuando se usa RunInLoop().
-  function ChangeState(estado0: TEstadoCon): boolean;  //Cambia el State actual
-  procedure ProcLoop(const lin: string);
+  cAnim   : integer;      //Contador para animación de ícono de estado
+  angA    : integer;      //Contador para animación de ícono de estado
   procedure SetLineDelimRecv(AValue: TUtLineDelRecv);
+  procedure RefreshConnection(Sender: TObject);  //Refresca la conexión
+  function ChangeState(estado0: TEstadoCon): boolean;  //Cambia el State actual
+private  //Auxiliar variables and methods, used by RunInLoop
+  LoopList: TStringList;  //Lista de salida para cuando se usa RunInLoop().
+  outList: TStringList;   //Lista de salida para cuando se usa RunInLoop().
+  LinPartial: boolean;    //Bandar
+  procedure ProcLoop(const lin: string);
+  procedure DoLineCompleted(const lin: string);
+  procedure DoReadData(nDat: integer; const lastLine: string);
 protected
   panel     : TStatusPanel; //referencia a panel para nostrar estado
   curPanel  : TStatusPanel; //para nostrar posición de cursor de editor de salida
@@ -111,30 +108,30 @@ protected
   function EsPrompt(const cad: string): boolean;
   function GetAnchoTerminal: integer;
   procedure SetAnchoTerminal(AValue: integer);
-  function ReadData: boolean;
+  function DoReadData: boolean;
   //respuesta a eventos de term
   procedure termAddLine;
   procedure termRefreshLines(fIni, fFin: integer);
   procedure termRecSysComm(info: string);
   procedure termLineCompleted(const lineCompleted: string);
-public  //Eventos
-  //Eventos de cambio de estado
+public  //Events
+  //Change state events.
   OnConnecting : TEvProcState;    //indica que se inicia el proceso y trata de conectar
   OnBusy       : TEvProcState;    //indica que está esperando prompt
   OnStopped    : TEvProcState;    //indica que se terminó el proceso
   OnGetPrompt  : TEvGetPrompt;   //indica que llegó el prompt
   OnChangeState: TEvRecSysComm;   //cambia de estado
-  //Eventos de llegada de datos
+  //Arriving data events.
   OnRefreshAll  : TEvRefreshAll;   //Para refrescar todo el contenido del terminal. No recomendable.
   OnInitScreen  : TEvInitScreen;   //indica que se debe agregar líneas de texto
   OnRefreshLine : TEvRefreshLine;  //indica que se deben refrescar una línea
   OnRefreshLines: TEvRefreshLines; //indica que se deben refrescar un grupo de líneas
   OnAddLine     : TEvAddNewLine;   //inidca que se debe agregar una línea a la salida
-  //Eventos de llegada de datos, opcionales.
+  //Optional arriving data events.
   OnLineCompleted:TEvLinCompleted; {Cuando se ha terminado de escribir una línea en el terminal.
                                    No funcionará si es que se producen saltos en el cursor}
   OnLinePrompt  : TEvLinCompleted;  //Cuando llega la línea del prompt
-  //Eventos adicionales
+  //Aditional events.
   OnChkForPrompt: TEvChkForPrompt; //Permite incluir una rutina externa para verificación de prompt.
   OnFirstReady  : TEvGetPrompt;    //La primera vez que de detcta el prompt
   OnReadData    : TEvReadData;    //Cuando llega una trama de datos por el terminal
@@ -159,23 +156,25 @@ public
   procedure Start;   //inicia proceso
   procedure Open(progPath, progParam: string); //Inicia conexión
   function Close: boolean;    //Termina la conexión
-  procedure RefreshConnection(Sender: TObject);  //Refresca la conexión
-  function RunInLoop(TimeoutSegs: integer=-1): boolean;
-  function RunInLoop(progPath, progParam: string; TimeoutSegs: integer = -1): boolean;
-  function RunInLoop(progPath, progParam: string; TimeoutSegs: integer;
-    var progOut: TStringList): boolean;
   procedure ClearTerminal;
   property TerminalWidth: integer read GetAnchoTerminal write SetAnchoTerminal;
   procedure Send(const txt: string);
   procedure SendLn(txt: string);  //Envía datos por el "stdin"
   procedure SendFile(name: string);  //Envía el contenido de un archivo
   procedure SendVT100Key(var Key: Word; Shift: TShiftState);  //Envía una tecla con secuencia de escape
-  //control de barra de estado
-  procedure RefPanelEstado;
-  procedure DrawStatePanel(c: TCanvas; const Rect: TRect); virtual;
   function LastLine: string; inline; //devuelve la última línea
   procedure AutoConfigPrompt; virtual;
-public   //Constructor y destructor
+public //Execution without TTimer.
+  function Loop(TimeoutSegs: integer = - 1; ldelay: integer = 50): boolean;
+  function RunInLoop(progPath, progParam: string; TimeoutSegs: integer = -1): boolean;
+  function RunInLoop(progPath, progParam: string; TimeoutSegs: integer;
+    var progOut: TStringList): boolean;
+  function RunInLoop(progPath, progParam: string; TimeoutSegs: integer; out
+    outText: String): boolean;
+public  //Statusbar control
+  procedure RefStatePanel;
+  procedure DrawStatePanel(c: TCanvas; const Rect: TRect); virtual;
+public   //Initialization
   constructor Create(PanControl: TStatusPanel); virtual;   //Constructor
   destructor Destroy; override;   //Limpia los buffers
 end;
@@ -222,7 +221,6 @@ begin
    setlength(result,cc);
    result[cc-1] := str;
 end;
-
 function TConsoleProc.ChangeState(estado0: TEstadoCon): boolean;
 {Cambia el estado de la conexión  y actualiza un panel con información sobre el estado}
 begin
@@ -234,27 +232,27 @@ begin
     case State of
     ECO_CONNECTING: begin
         txtState := STA_NAME_CONNEC;
-        RefPanelEstado;  //fuerza a redibujar panel con el nuevo State
+        RefStatePanel;  //fuerza a redibujar panel con el nuevo State
         if OnConnecting<>nil then OnConnecting(0,term.CurXY);
       end;
     ECO_ERROR_CON: begin
         txtState := STA_NAME_ERR_CON;
-        RefPanelEstado;  //fuerza a redibujar panel con el nuevo State
+        RefStatePanel;  //fuerza a redibujar panel con el nuevo State
 //        if OnErrorConex <> nil then OnErrorConex(nLeidos, pErr);
       end;
     ECO_BUSY: begin
         txtState := STA_NAME_BUSY;
-        RefPanelEstado;  //fuerza a redibujar panel con el nuevo State
+        RefStatePanel;  //fuerza a redibujar panel con el nuevo State
         if OnBusy <> nil then OnBusy(nLeidos, term.CurXY);
       end;
     ECO_READY: begin
         txtState := STA_NAME_READY;
-        RefPanelEstado;  //fuerza a redibujar panel con el nuevo State
+        RefStatePanel;  //fuerza a redibujar panel con el nuevo State
         if OnGetPrompt <> nil then OnGetPrompt(LastLine, term.CurXY, term.height);
       end;
     ECO_STOPPED: begin
         txtState := STA_NAME_STOPPED;
-        RefPanelEstado;  //fuerza a redibujar panel con el nuevo State
+        RefStatePanel;  //fuerza a redibujar panel con el nuevo State
         if OnStopped <> nil then OnStopped(nLeidos, term.CurXY);
       end;
     end;
@@ -266,109 +264,6 @@ function TConsoleProc.LastLine: string; inline;
 //devolverá siempre los últimos caracteres recibidos.
 begin
   Result := term.buf[term.CurY];
-end;
-procedure TConsoleProc.RefPanelEstado;   //Refresca el estado del panel del StatusBar asociado.
-begin
-  if panel = nil then exit;  //protección
-  //fuerza a llamar al evento OnDrawPanel del StatusBar
-  panel.StatusBar.InvalidatePanel(panel.Index,[ppText]);
-  //y este a us vez debe llamar a DrawStatePanel()
-end;
-procedure TConsoleProc.DrawStatePanel(c: TCanvas; const Rect: TRect);
-{Dibuja un ícono y texto, de acuerdo al estado de la conexión. Este código está pensado
- para ser usado en el evento OnDrawPanel() de una barra de estado}
-var
-  p1,p2: Tpoint;
-  procedure Torta(c: Tcanvas; x1,y1,x2,y2: integer; a1,a2: double);  //dibuja una torta
-  var x3,y3,x4,y4: integer;
-      xc, yc: integer;
-  begin
-    xc := (x1+x2) div 2; yc := (y1+y2) div 2;
-    x3:=xc + round(1000*cos(a1));
-    y3:=yc + round(1000*sin(a1));
-    x4:=xc + round(1000*cos(a2));
-    y4:=yc + round(1000*sin(a2));
-    c.pie(x1,y1,x2,y2,x3,y3,x4,y4);
-  end;
-  procedure Circulo(c: Tcanvas; xc,yc: integer; n: integer);  //dibuja un círculo
-  const r = 2;
-  begin
-    case n of
-    5: c.Brush.Color:=$B0FFB0;
-    4: c.Brush.Color:=$40FF40;
-    3: c.Brush.Color:=$00E000;
-    2: c.Brush.Color:=$00CC00;
-    1: c.Brush.Color:=$00A000;
-    0: c.Brush.Color:=$008000;
-    else
-     c.Brush.Color:=clWhite;
-    end;
-    c.Pen.Color:=c.Brush.Color;
-    c.Ellipse(xc-r, yc-r+1, xc+r, yc+r+1);
-  end;
-begin
-  if State in [ECO_CONNECTING, ECO_BUSY] then begin  //estados de espera
-    c.Pen.Width:=0;  //restaura ancho
-    Circulo(c,Rect.Left+5,Rect.Top+5, angA);
-    inc(angA);if angA>7 then angA:=0;
-    Circulo(c,Rect.Left+9,Rect.Top+3, angA);
-    inc(angA);if angA>7 then angA:=0;
-    Circulo(c,Rect.Left+13,Rect.Top+5, angA);
-    inc(angA);if angA>7 then angA:=0;
-    Circulo(c,Rect.Left+15,Rect.Top+9, angA);
-    inc(angA);if angA>7 then angA:=0;
-    Circulo(c,Rect.Left+13,Rect.Top+13, angA);
-    inc(angA);if angA>7 then angA:=0;
-    Circulo(c,Rect.Left+9,Rect.Top+15, angA);
-    inc(angA);if angA>7 then angA:=0;
-    Circulo(c,Rect.Left+5,Rect.Top+13, angA);
-    inc(angA);if angA>7 then angA:=0;
-    Circulo(c,Rect.Left+3,Rect.Top+9, angA);
-    inc(angA);if angA>7 then angA:=0;
-
-  end else if State = ECO_ERROR_CON then begin //error de conexión
-    //c´rculo rojo
-    c.Brush.Color:=clRed;
-    c.Pen.Color:=clRed;
-    c.Ellipse(Rect.Left+2, Rect.Top+2, Rect.Left+16, Rect.Top+16);
-    //aspa blanca
-    c.Pen.Color:=clWhite;
-    c.Pen.Width:=2;
-    p1.x := Rect.Left+5; p1.y := Rect.Top+5;
-    p2.x := Rect.Left+12; p2.y := Rect.Top+12;
-    c.Line(p1,p2);
-    p1.x := Rect.Left+5; p1.y := Rect.Top+12;
-    p2.x := Rect.Left+12; p2.y := Rect.Top+5;
-    c.Line(p1,p2);
-  end else if State = ECO_READY then begin //disponible
-    c.Brush.Color:=clGreen;
-    c.Pen.Color:=clGreen;
-    c.Ellipse(Rect.Left+2, Rect.Top+2,Rect.Left+16, Rect.Top+16);
-    c.Pen.Color:=clWhite;
-    c.Pen.Width:=2;
-    p1.x := Rect.Left+6; p1.y := Rect.Top+7;
-    p2.x := Rect.Left+8; p2.y := Rect.Top+12;
-    c.Line(p1,p2);
-    p1.x := Rect.Left+12; p1.y := Rect.Top+5;
-//    p2.x := Rect.Left+12; p2.y := Rect.Top+5;
-    c.Line(p2,p1);
-  end else begin            //estados detenido
-    //círculo gris
-    c.Brush.Color:=clGray;
-    c.Pen.Color:=clGray;
-    c.Ellipse(Rect.Left+2, Rect.Top+2, Rect.Left+16, Rect.Top+16);
-    //aspa blanca
-    c.Pen.Color:=clWhite;
-    c.Pen.Width:=2;
-    p1.x := Rect.Left+5; p1.y := Rect.Top+5;
-    p2.x := Rect.Left+12; p2.y := Rect.Top+12;
-    c.Line(p1,p2);
-    p1.x := Rect.Left+5; p1.y := Rect.Top+12;
-    p2.x := Rect.Left+12; p2.y := Rect.Top+5;
-    c.Line(p1,p2);
-  end;
-  c.Font.Color:=clBlack;
-  c.TextRect(Rect, 19 + Rect.Left, 2 + Rect.Top, txtState);
 end;
 function TConsoleProc.GetAnchoTerminal: integer;
 //Devuelve el ancho del terminal
@@ -438,7 +333,7 @@ begin
   //Pasa de Runnig a Not Running
   ChangeState(ECO_STOPPED);
   //Puede que quede datos en el "stdout"
-  ReadData; //lee lo que queda
+  DoReadData; //lee lo que queda
 end;
 procedure TConsoleProc.ClearTerminal;
 {Reinicia el terminal iniciando en (1,1) y limpiando la grilla}
@@ -529,7 +424,7 @@ begin
     Result := false;
   end;
 end;
-function TConsoleProc.ReadData: boolean;
+function TConsoleProc.DoReadData: boolean;
 {Verifica la salida del proceso. Si llegan datos los pasa a "term" y devuelve TRUE.
 Lee en un solo bloque si el tamaño de los datos, es menor que UBLOCK_SIZE, en caso
 contrario lee varios bloques. Actualiza "nLeidos", "HayPrompt". }
@@ -552,7 +447,8 @@ begin
       term.AddData(@bolsa);  //puede generar eventos
       nLeidos += nBytes;
     end else begin
-      //leemos bloque de UBLOCK_SIZE bytes
+      {Leemos bloque de UBLOCK_SIZE bytes. bolsa[] tiene en realidad un tamaño de
+       UBLOCK_SIZE+1, así que dejará al menos un byte libre, para poner 0x00}
       nBytes := P.Output.Read(bolsa, UBLOCK_SIZE);
       bolsa[nBytes] := #0;   //marca fin de cadena
       term.AddData(@bolsa);  //puede generar eventos
@@ -586,13 +482,13 @@ end;
 procedure TConsoleProc.RefreshConnection(Sender: TObject);
 {Refresca el estado de la conexión. Verifica si hay datos de salida del proceso, para
 generar los eventos respectivos que capturan la salida. Es llamado autométicamente
-por un timer, cuando está disponible, pero en aplicaciones de consola, puede que sea
+por un Timer, cuando está disponible, pero en aplicaciones de consola, puede que sea
 necesario llamarlo manualmente, o usar el método }
 begin
   if State = ECO_STOPPED then Exit;  //No está corriendo el proceso.
   if p.Running then begin
      //Se está ejecutando
-     if ReadData then begin //actualiza "HayPrompt"
+     if DoReadData then begin //actualiza "HayPrompt"
         if State in [ECO_READY, ECO_BUSY] then begin
            if HayPrompt then begin
               ChangeState(ECO_READY);
@@ -613,14 +509,14 @@ begin
      end;
   end else begin //terminó
      ChangeState(ECO_STOPPED);
-     ReadData; //lee por si quedaban datos en el buffer
+     DoReadData; //lee por si quedaban datos en el buffer
   end;
   //actualiza animación
   inc(cAnim);
   if (cAnim mod 4) = 0 then begin
     if State in [ECO_CONNECTING, ECO_BUSY] then begin  //estados de espera
       inc(angA);if angA>7 then angA:=0;
-      RefPanelEstado;
+      RefStatePanel;
     end;
     cAnim := 0;
   end;
@@ -628,13 +524,9 @@ end;
 procedure TConsoleProc.Send(const txt: string);
 {Envía una cadena como como flujo de entrada al proceso.
 Es importante agregar el caracter #13#10 al final. De otra forma no se leerá el "stdin"}
-var
-  n: Integer;
 begin
   if p = NIL then exit;
   if not p.Running then exit;
-n := length(txt);
-debugln(IntToStr(n));
   p.PipeBufferSize:=20000;
   p.Input.Size:=20000;
   p.Input.Write(txt[1], length(txt));  //pasa el origen de los datos
@@ -721,11 +613,28 @@ begin
   end;
 end;
 procedure TConsoleProc.ProcLoop(const lin: string);
-{método interno de respuesta al evento OnLineCompleted(), para usarse con RunInLoop()}
+{Método interno de respuesta al evento OnLineCompleted(), para usarse con RunInLoop()}
 begin
   if LoopList<>nil then begin
     LoopList.Add(lin);   //solo acumula
   end;
+end;
+procedure TConsoleProc.DoLineCompleted(const lin: string);
+{Método interno de respuesta al evento OnLineCompleted(), para usarse con RunInLoop()}
+begin
+  if LinPartial then begin
+    //Estamos en la línea del prompt
+    outList[outList.Count-1] := lin;  //reemplaza última línea
+    LinPartial := false;
+  end else begin  //caso común
+    outList.Add(lin);
+  end;
+end;
+procedure TConsoleProc.DoReadData(nDat: integer; const lastLine: string);
+{Método interno de respuesta al evento OnReadData(), para usarse con RunInLoop()}
+begin
+  LinPartial := true;   //marca bandera
+  outList.Add(lastLine);   //agrega la línea que contiene al prompt
 end;
 procedure TConsoleProc.SetLineDelimRecv(AValue: TUtLineDelRecv);
 begin
@@ -737,10 +646,11 @@ begin
   LDR_CR_LF: begin term.bhvCR := tbcNewLine; term.bhvLF := tbcNewLine; end;
   end;
 end;
-function TConsoleProc.RunInLoop(TimeoutSegs: integer = -1): boolean;
+function TConsoleProc.Loop(TimeoutSegs: integer = -1; ldelay:integer = 50): boolean;
 {Ejecuta el proceso en un lazo, hasta que la aplicación termine o hasta que se
 cumpla el número de segundos indciados en "TimeoutSegs". Si se detiene por desborde
 devuelve TRUE, y un mensaje de error en "msjError".
+"ldelay" es la duración en milisegundos que se asigna al bucle.
 Se usa cuando no se puede usar el temporizador, como en las aplicaciones de consola.}
 var
   tic_proc: Integer;
@@ -750,7 +660,7 @@ begin
     //ejecuta lazo hasta que termine el proceso
     repeat
       RefreshConnection(nil);
-      sleep(50);
+      sleep(ldelay);
     until State = ECO_STOPPED;
     exit(false);
   end else begin
@@ -759,7 +669,7 @@ begin
     max_tics := TimeoutSegs * 20;
     repeat
       RefreshConnection(nil);  //necesario porque no funciona el Timer del LCL
-      sleep(50);
+      sleep(ldelay);
       inc(tic_proc);
     until (State = ECO_STOPPED) or (tic_proc > max_tics);
     if tic_proc > max_tics then begin
@@ -771,12 +681,12 @@ begin
 end;
 function TConsoleProc.RunInLoop(progPath, progParam: string;
                                 TimeoutSegs: integer = -1): boolean;
-{Versión de RunInLoop(), que ejecuta el proceso y el lazo de espera, a la vez.
+{Ejecuta el proceso y el lazo de espera (Loop), a la vez.
 }
 begin
   Open(progPath, progParam);
   if msjError<>'' then exit;
-  Result := RunInLoop(TimeoutSegs);
+  Result := Loop(TimeoutSegs);
   //puede generar error
 end;
 function TConsoleProc.RunInLoop(progPath, progParam: string;
@@ -788,6 +698,21 @@ begin
   LoopList := progOut;   //aquí se acumulará la salida
   Result := RunInLoop(progPath, progParam, TimeoutSegs);
   OnLineCompleted:=nil;
+  //puede generar error
+end;
+function TConsoleProc.RunInLoop(progPath, progParam: string;
+  TimeoutSegs: integer; out outText: String): boolean;
+{Versión de RunInLoop(), que ejecuta captura la salida del proceso en una cadena
+}
+begin
+  OnLineCompleted := @DoLineCompleted;
+  OnReadData      := @DoReadData;
+  outList := TStringList.Create;   //Aquí se acumulará la salida
+  Result := RunInLoop(progPath, progParam, TimeoutSegs);
+  outText := outList.Text;
+  outList.Destroy;
+  OnLineCompleted := nil;
+  OnReadData := nil;
   //puede generar error
 end;
 //respuesta a eventos de term
@@ -898,7 +823,111 @@ begin
   promptFin := SimbolosFinales(ultlin);
   SendLn(''); //para que detecte el prompt
 end;
-//constructor y destructor
+//Statusbar control
+procedure TConsoleProc.RefStatePanel;   //Refresca el estado del panel del StatusBar asociado.
+begin
+  if panel = nil then exit;  //protección
+  //fuerza a llamar al evento OnDrawPanel del StatusBar
+  panel.StatusBar.InvalidatePanel(panel.Index,[ppText]);
+  //y este a us vez debe llamar a DrawStatePanel()
+end;
+procedure TConsoleProc.DrawStatePanel(c: TCanvas; const Rect: TRect);
+{Dibuja un ícono y texto, de acuerdo al estado de la conexión. Este código está pensado
+ para ser usado en el evento OnDrawPanel() de una barra de estado}
+var
+  p1,p2: Tpoint;
+  procedure Pie(c: Tcanvas; x1,y1,x2,y2: integer; a1,a2: double);  //dibuja una torta
+  var x3,y3,x4,y4: integer;
+      xc, yc: integer;
+  begin
+    xc := (x1+x2) div 2; yc := (y1+y2) div 2;
+    x3:=xc + round(1000*cos(a1));
+    y3:=yc + round(1000*sin(a1));
+    x4:=xc + round(1000*cos(a2));
+    y4:=yc + round(1000*sin(a2));
+    c.pie(x1,y1,x2,y2,x3,y3,x4,y4);
+  end;
+  procedure Circulo(c: Tcanvas; xc,yc: integer; n: integer);  //dibuja un círculo
+  const r = 2;
+  begin
+    case n of
+    5: c.Brush.Color:=$B0FFB0;
+    4: c.Brush.Color:=$40FF40;
+    3: c.Brush.Color:=$00E000;
+    2: c.Brush.Color:=$00CC00;
+    1: c.Brush.Color:=$00A000;
+    0: c.Brush.Color:=$008000;
+    else
+     c.Brush.Color:=clWhite;
+    end;
+    c.Pen.Color:=c.Brush.Color;
+    c.Ellipse(xc-r, yc-r+1, xc+r, yc+r+1);
+  end;
+begin
+  if State in [ECO_CONNECTING, ECO_BUSY] then begin  //estados de espera
+    c.Pen.Width:=0;  //restaura ancho
+    Circulo(c,Rect.Left+5,Rect.Top+5, angA);
+    inc(angA);if angA>7 then angA:=0;
+    Circulo(c,Rect.Left+9,Rect.Top+3, angA);
+    inc(angA);if angA>7 then angA:=0;
+    Circulo(c,Rect.Left+13,Rect.Top+5, angA);
+    inc(angA);if angA>7 then angA:=0;
+    Circulo(c,Rect.Left+15,Rect.Top+9, angA);
+    inc(angA);if angA>7 then angA:=0;
+    Circulo(c,Rect.Left+13,Rect.Top+13, angA);
+    inc(angA);if angA>7 then angA:=0;
+    Circulo(c,Rect.Left+9,Rect.Top+15, angA);
+    inc(angA);if angA>7 then angA:=0;
+    Circulo(c,Rect.Left+5,Rect.Top+13, angA);
+    inc(angA);if angA>7 then angA:=0;
+    Circulo(c,Rect.Left+3,Rect.Top+9, angA);
+    inc(angA);if angA>7 then angA:=0;
+
+  end else if State = ECO_ERROR_CON then begin //error de conexión
+    //c´rculo rojo
+    c.Brush.Color:=clRed;
+    c.Pen.Color:=clRed;
+    c.Ellipse(Rect.Left+2, Rect.Top+2, Rect.Left+16, Rect.Top+16);
+    //aspa blanca
+    c.Pen.Color:=clWhite;
+    c.Pen.Width:=2;
+    p1.x := Rect.Left+5; p1.y := Rect.Top+5;
+    p2.x := Rect.Left+12; p2.y := Rect.Top+12;
+    c.Line(p1,p2);
+    p1.x := Rect.Left+5; p1.y := Rect.Top+12;
+    p2.x := Rect.Left+12; p2.y := Rect.Top+5;
+    c.Line(p1,p2);
+  end else if State = ECO_READY then begin //disponible
+    c.Brush.Color:=clGreen;
+    c.Pen.Color:=clGreen;
+    c.Ellipse(Rect.Left+2, Rect.Top+2,Rect.Left+16, Rect.Top+16);
+    c.Pen.Color:=clWhite;
+    c.Pen.Width:=2;
+    p1.x := Rect.Left+6; p1.y := Rect.Top+7;
+    p2.x := Rect.Left+8; p2.y := Rect.Top+12;
+    c.Line(p1,p2);
+    p1.x := Rect.Left+12; p1.y := Rect.Top+5;
+//    p2.x := Rect.Left+12; p2.y := Rect.Top+5;
+    c.Line(p2,p1);
+  end else begin            //estados detenido
+    //círculo gris
+    c.Brush.Color:=clGray;
+    c.Pen.Color:=clGray;
+    c.Ellipse(Rect.Left+2, Rect.Top+2, Rect.Left+16, Rect.Top+16);
+    //aspa blanca
+    c.Pen.Color:=clWhite;
+    c.Pen.Width:=2;
+    p1.x := Rect.Left+5; p1.y := Rect.Top+5;
+    p2.x := Rect.Left+12; p2.y := Rect.Top+12;
+    c.Line(p1,p2);
+    p1.x := Rect.Left+5; p1.y := Rect.Top+12;
+    p2.x := Rect.Left+12; p2.y := Rect.Top+5;
+    c.Line(p1,p2);
+  end;
+  c.Font.Color:=clBlack;
+  c.TextRect(Rect, 19 + Rect.Left, 2 + Rect.Top, txtState);
+end;
+//Initialization
 constructor TConsoleProc.Create(PanControl: TStatusPanel);
 //Constructor
 begin
@@ -938,5 +967,6 @@ begin
   FreeAndNIL(p);
   lstTmp.Free;    //limpia
 end;
+
 
 end.

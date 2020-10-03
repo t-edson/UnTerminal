@@ -1,116 +1,91 @@
 UnTerminal 1.0
 ==============
 
-By Tito Hinostroza
+Por Tito Hinostroza
 
-Lazarus unit for control console processes, with prompt detection. Tested in Linux and DOS consoles
+Unidad en Lazarus, para el control de procesos tipo consola, con detección de "prompt".
 
-This unit allows to launch a process and interact with it trough the standard input and output.
+Esta unidad permite procesar la entrada y salida de procesos que manejen entrada y salida estándar de texto. Permite además detectar el prompt y el estado de "ocupado" y "listo".
 
-Features:
+Los procesos a controlar con esta unidad deben cumplir las siguientes condiciones:
 
-* Work as a wrapper for TProcess.
-* Includes detection of prompt.
-* Assign states for a process, like "Ready" or "Busy".
-* It's event driven.
+1. Que se puedan lanzar como procesos de tipo consola.
+2. Que su entrada y salida estándar sea de tipo texto.
+3. Que tengan prompt. (No necesario si no importa detectar el prompt).
+4. Que acepten comandos (Si se quiere enviar información al proceso).
 
-Process to control with this unit should complaint:
+Los procesos que se pueden controlar con esta unidad son diversos, como clientes de telnet, ftp, o el mismo shell del sistema operativo, como se muestra en el ejemplo incluido.
 
-1. That can be launched as a console command.
-2. That input and output are text format.
+En la versión actual no se puede leer el flujo de salida de errores independientemente. Solo se controlan dos flujos: 
 
-Optionally they can:
-3. Have a prompt.
-4. Be controled by commands (Si se quiere enviar información al proceso).
+1. De entrada 
+2. De salida (salida estándar y de errores).
 
-The processes that can be controlled with this unit are diverse, such as telnet clients, ftp, or the operating system shell itself, as shown in the included example.
+Conexión
+--------
 
-In the current version, the error output stream cannot be read independently. Only two flows are controlled:
-
-1. Input
-2. Output (stdout and stderr).
-
-## Hello world
-
-The simplest code to launch a process and capture the output can be:
+Para conectarse mediante un proceso, se debe crear una instancia de TConsoleProc, y seguir la secuencia de conexión:
 
 ```
-var outputText: string;
-
-  proc:= TConsoleProc.Create(nil);
-  proc.RunInLoop('bash -c "ls" ','', -1, outputText);
-```
-
-This code executes the command 'bash -c "ls" ' and captures the output (and the errors) in the variable "outputText".
-
-The -1 parameters is the numbers of seconds to wait the process finish. The value -1 indicates, the instruction will wait until the command finishes.
-
-If the process or command doesn't exist, the instruction RunInLoop will raise an exception in runtime.
-
-## Executing commands
-
-To execute a command, first you need to create an instance of the class TConsoleProc:
-
-```
-  p := TConsoleProc.Create(nil);  //Crea conexión
+  p := TConsoleProc.Create(StatusBar1.Panels[1]);  //Crea conexión
   ...
   p.Free;
 ```
 
-Then you need to execute the command, choosing the appropriate way.
+Opcionalmente se le puede pasar la referencia a un panel de una barra de estado, para que se muestren íconos que indiquen el estado de la conexión (poner en NIL si no se usará). En este caso se debe manejar el evento OnDrawPanel() de la Barra de estado:
 
-There are several ways to execute commands using UnTerminal. They can be clasified in two types:
+```
+ StatusBar1.OnDrawPanel:=@SBDrawPanel;
+ ...
+ procedure Form1.SBDrawPanel(StatusBar:TStatusBar; Panel:TStatusPanel; const Rect:TRect);
+ begin
+  if panel.Index = 1 then p.DrawStatePanel(StatusBar.Canvas, Rect);
+ end;
+```
 
-A) Running in a finite loop (or until the process finishes).
-B) Running in a infinite loop (or until the program finishes).
+La conexión se maneja por estados. Los estados posibles del proceso son:
 
-Both methods can use events to work.
+* ECO_STOPPED .- El Proceso no se ha iniciado. Esta condición se da siempre después de crer la conexión, o después de cerrrar una conexión abierta. Puede que haya datos pendientes en el "buffer".
+* ECO_CONNECTING .- Esta condición se da después de abrir la conexión con el proceso indicado. Termina cuando se detecta el prompt. Si no se detecta el prompt, (sea que no llegue, o no se haya configruado correctamente), el proceso se mantendrá siempre en este estado.
+* ECO_ERROR_CON .- Se produce cuando después de intentar abrir el proceso, se produce un error, por ejemplo, cuando se referencia a un archivo que no existe.
+* ECO_READY .- Este proceso se inicia cuando se detecta el prompt (si es que se usa la detección de prompt). Indica que el proceso está listo para aceptar comandos. Se mantiene en este estado hasta que se reciba algún comando para enviar al proceso.
+* ECO_BUSY .- Este estado se inicia después de mandar un comando, cuando el proceso se encontraba en estado ECO_READY. Se mantiene en este estado, hasta que se detecte el prompt y se pase nuevamente al estado ECO_READY.
 
-The option A, is implemented using the method RunInLoop(). There are several versions of this method. The idea of this way is to send a command and get the output/error text in a variable, generally without interacting with the process.
+El proceso solo puede estar en uno de estos estados a la vez. La transición entre estados tiene una secuencia lógica, pero puede tener cambios.
 
-The option B is described in the next sections of this document.
-
-## States of the process
-
-The connection is managed by states. The possible states of the process are:
-
-* ECO_STOPPED .- The Process has not started. This condition always occurs after creating the connection, or after closing an open connection. There may be data pending in the "buffer"
-
-* ECO_CONNECTING .- This condition occurs after opening the connection with the indicated process. Terminates when the prompt is detected. If the prompt is not detected (whether it does not arrive, or it has not been configured correctly), the process will always remain in this state.
-
-* ECO_ERROR_CON .- Occurs when after trying to open the process, an error occurs, for example, when referring to a file that does not exist.
-
-* ECO_READY .- This process starts when the prompt is detected (if prompt detection is used). Indicates that the process is ready to accept commands. It remains in this state until a command is received to send to the process.
-
-* ECO_BUSY .- This state starts after sending a command, when the process was in ECO_READY state. It remains in this state, until the prompt is detected and the ECO_READY state is fired.
-
-The process can only be in one of these states at a time. The transition between states has a logical sequence, but can have changes.
-
-A typical sequence of states when initiating a successful connection is:
+Una secuencia típica de estados al iniciar una conexión exitosa es:
  
  ECO_STOPPED -> ECO_CONNECTING -> ECO_READY
 
-The ECO_READY status indicates that the process is ready to receive commands and is detected when the prompt is received. Therefore, for a process to be considered as ECO_READY, it must have a prompt and that the terminal is configured to detect it.
+El estado de ECO_READY indica que el proceso está listo para recibir comandos y, se detecta cuando se recibe el prompt. Por lo tanto para que se pueda considerar a un proceso como ECO_READY, se debe cumplir que tenga un prompt y que el terminal esté configurado para detectarlo.
 
-The sequence of a failed connection would be:
+La secuencia de una conexión con error sería:
  
  ECO_STOPPED -> ECO_CONNECTING -> ...
 
-That is, the prompt is not detected, but the process probably stops with an error message. Error messages detection is not done on this unit, because they can be very diverse. It is recommended to implement them in another unit or by deriving an additional class.
+Es decir, que no se detecta el prompt, sino que probablemente, el proceso se detiene con un mensaje de error. La detección de los mensajes de error, no se hace en esta unidad, porque pueden ser muy diversos. Se recomienda implementarlos en otra unidad o derivando una clase adicional.
  
-Once the process is available. Any command would have the following flow:
+Una vez el proceso se encuentre disponible. Un comando cualquiera, tendría el siguiente flujo:
 
 ECO_READY -> ECO_BUSY -> ECO_READY
 
-This unit is thought to be used in slow connections, and with long data responses, therefore the arrival of data is handled completely by events.
+Está unidad está pensada para ser usada en conexiones lentas, y con volúmenes
+considerables de datos, por ello se maneja la llegada de datos completamente por eventos.
 
-To operate the display, use a simple VT100 terminal from the TermVT unit. However, this unit has been designed to be able to receive the text from the VT100, in a TStringList, and to be able to permanently record the content.
+Para el manejo de la pantalla usa un terminal VT100 sencillo, de la unidad TermVT. Sin
+embargo, esta unidad ha sido diseñada para poder recibir el texto del VT100, en un
+TStringList, y poder registrar permanentemente el contenido.
 
-The process to be launched starts with the Open() method and ends with the Close() method.
+El proceso a lanzar, se inicia con el método Open() y se termina con el método Close().
 
-## Configurando un Editor para mostrar la salida
+Por defecto, los saltos de línea se enviarán al proceso como el caracter LF (que es usual en conexiones de tipo Telnet). Para cambiar a CR+LF (que es usual en el entorno Windows), se debe fijar la propiedad 'sendCRLF' en TRUE. 
 
-El objetivo del uso de UnTerminal es poder mostrar la salida de forma cómoda para el usuario.
+Esta unidad solo ha sido probada en Windows, pero podría funcionar también en Linux.
+
+Configurando un Editor para mostrar la salida
+=============================================
+
+El objetivo del uso de un terminal es poder mostrar la salida de forma cómoda para el usuario.
 
 "UnTerminal", ha sido diseñado para manejar procesos lentos y con salida masiva de datos. Por ello la salida de datos se maneja enteramente por eventos. Además se supone que se requiere guardar un registro en pantalla, de la información que se va campturando. Por ello los eventos están orientado a manejar un objeto "TStrings", que permite ir agregando líneas nuevas e ir guardando las líneas anteriores (registro de salida).
 
@@ -127,7 +102,8 @@ Podría implementarse un método adicional que consiste en interceptar directame
 
 Implementar la salida de datos, no afecta en la detección del prompt. Las rutinas de detección trabajan directamente sobre los bloques de datos que van llegando del proceso, sin necesidad de que estos datos se muestren.
 
-### Salida como Terminal VT100
+Salida como Terminal VT100
+--------------------------
 
 Este es el método más completo de manejo de salida del terminal. Permite reconocer las secuencias de escape que controlan el cursor, o manipulan el texto del terminal. 
 
@@ -181,7 +157,8 @@ Para limpiar el contenido del terminal, se debe llamar al método ClearTerminal(
 
 Llamar a ClearTerminal(), no tendrá efecto, sobre el estado de la conexión o del proceso en curso, sino solamente en el contenido del terminal.
 
-### Salida Línea por Línea
+Salida Línea por Línea
+----------------------
 
 El método descrito en la sección anterior (usando los eventos OnInitScreen(), OnRefreshLine(), OnRefreshLines() y OnAddLine()), es por así decirlo, la manera formal de controlar la salida. Este método considera que el proceso puede manejar secuencias ANSI de escape para el control de la pantalla del terminal virtual. 
 
@@ -209,13 +186,14 @@ end;
 
 Esta forma minimalista funcionará bien, mostrando los datos de llegada, pero con un aparente retraso, porque para que se muestre una línea, esta debe estar completa. De modo que cuando llegue el prompt (o una línea incompleta), esta línea no se mostrará en el editor (a pesar de que el proceso podría pasar al estado ECO_READY). 
 
-El hecho de que no se muestre la última línea, no implica que no se mostrará más. Esta se hará visible al recibir el salto de línea correspondiente, a menos que se  cierre la conexión antes.
+El hecho de que no se muestre la última línea, no implica que no se mostrará más. Esta se hará visible al recibir el salto de línea correpsondiente, a menos que se  cierre la conexión antes.
 
-Este método de captura de salida es útil cuando se requiere capturar la salida masiva de datos sin que sea muy importante la correcta visualización del prompt o líneas intermedias.
+Este método de captura de salida es útil cuando se requiere capturar la salida masiva de datos sin que se amuy importante la correcta visualización del prompt o líneas intermedias.
 
 Para determinar cuando se termina de recibir los datos, se puede usar la detección del prompt, si es que el proceso lo permite.
 
-### Salida línea por línea con línea parcial
+Salida línea por línea con línea parcial
+----------------------------------------
 
 El método de línea por línea es simple y seguro. Pero no muestra la última línea. Para que se muestre la última línea completa, es necesario que se reciba el salto de línea correspondiente. Así podemos decir que en este modo de trabajo, no se mostrará nunca la última línea recibida (a menos claro, que el último caracter recibido sea el salto de línea y consideremos que la última línea es la anterior al salto).
 
@@ -263,7 +241,8 @@ El uso de los eventos OnLineCompleted()-OnReadData() es una forma sencilla de re
 
 En estos casos no se debería implementar este método de captura de salida; pero inclusive si se implementara aquí, podríamos tarbajar bien, mientras no se generen saltos del cursor o borrado de texto. Las secuencias de escape que cambian atributos del texto no afectan en la salida del texto, porque son procesadas (o mejor dicho ignoradas) por TConsoleProc, de modo que los eventos de salida de texto no contienen secuencias ANSI de ningún tipo, en sus parámetros.
 
-### Salida línea por línea con línea parcial en Prompt
+Salida línea por línea con línea parcial en Prompt
+--------------------------------------------------
 
 Como una variación del método anterior, se presenta este método que es muy similar, pero con la diferencia que la detección de líneas parciales se hace solo para cuando se detecte el promtp.
  
@@ -313,19 +292,18 @@ Este método de trabajo también también puede sufrir del problema del método 
 
 Aunque el efecto de este caso extremo puede no ser muy crítico, ya que solo generará una línea adicional con el prompt en el editor de salida. Esta línea adicional no quitará la legibilidad del código pero de todas formas, es una falta de fidelidad en la salida del proceso.
   
-## Manejo del Terminal 
+Manejo del Terminal 
+===================
 
-### Envío de comandos
+## Envío de comandos
 
-Los comandos (o cualquier cadena en general), se envían al proceso con los método Send(), SendLn() o SendFile(). 
-
-SendLn() es similar a Send(), pero envía adicionalmente un salto de línea al final. El salto de línea es necesario, en la mayoría de procesos, para que se reconozca a la cadena enviada, como un comando.
+Los comandos (o cualquier cadena en general), se envían al proceso con los método Send(), SendLn() o SendFile(). SendLn() es similar a Send(), pero envía adicionalmente un salto de línea al final. El salto de línea es necesario, en la mayoría de procesos, para que se reconozca a la cadena enviada, como un comando.
 
 El método SendFile(), envía el contenido completo de un archivo al terminal.
 
 El salto de línea a enviar depende del valor de "LineDelimSend".
 
-Para enviar caracteres de control, se debe usar el método SendVT100Key(), porque los caracteres de control, deben convertirse primero en secuencias de escape, al menos para los aplicativos que reconozcan las secuencias de escape. Por ejemplo si se envía la tecla direccional derecha, con SendVT100Key(), primero se transformará en la secuencia ESC+\[C.
+Para enviar caracteres de control, se debe usar el método SendVT100Key(), porque los caracteres de control, deben convertirse primero en secuencias de escape, al menos para los aplicativos que reconozcan las secuencias de escape. Por ejemplo si se envía la tecla direccional derecha, con SendVT100Key(), primero se transformará en la secuencia ESC+[C.
 
 Para enviar simples comandos (que son secuencias de caracteres imprimibles), basta con usar SenLn().
 
@@ -344,7 +322,7 @@ Los datos de salida que llegan por el terminal, se recuperan por sondeo del fluj
 
 Para cambiar el periodo de sondeo de la salida del proceso, se debe cambiar el valor de la propiedad 'clock.interval' (en milisegundos). Se puede trabajar bien con periodos de 100 mseg o aún más, si la cantidad de información es baja. Pero no es recomendable bajar a menos de 50 mseg, porque se genera una carga adicional de CPU (aún cuando no llegen datos). Solo se debería bajar este periodo cuando se requiera procesar los datos de llegada, de forma inmediata.
 
-### Saltos de línea al enviar
+## Saltos de línea al enviar
 
 Dentro de UnTerminal, se pueden configurar los caracteres de salto de línea que se usarán, tanto para el envío, como para la recepción.
 
@@ -370,7 +348,7 @@ En general, se debe poner a "LineDelimSend" en LDS_LF, para los procesos en Linu
 
 La propiedad "LineDelimSend", no tiene efecto sobre el método TConsoleProc.Send(), que seguirá enviando siempre, los caracteres indicados.
 
-### Saltos de línea al recibir
+## Saltos de línea al recibir
 
 Para configurar los caracteres de salto de línea, en la recepción, se debe usar la propiedad "LineDelimRecv", que puede tomar los siguientes valores: 
 
@@ -386,7 +364,7 @@ En general, se debe poner a "LineDelimRecv" en LDR_LF, para los procesos en Linu
 El evento TTermVT100.OnLineCompleted(), se genera cuando se detecta la llegada del caracter (o caracteres) de salto de línea. Además se pasa como parámetro, a la línea actual. 
 
 
-## Detección del Prompt
+# Detección del Prompt
 
 La detección del Prompt se hace explorando las cadenas de texto que van llegando del proceso, para ver si coinciden con los parámetros de la detección. Esta forma puede no ser muy confiable si el Prompt del proceso es muy cambiante.
 
@@ -400,7 +378,7 @@ Así, por ejemplo para detectar un prompt de tipo:
 
 ```[usuario@localhost ~]$ ```
 
-Se puede configurar: promptIni='\[' y promptFin = '$ '. Los espacios son también parte del texto que se debe configurar.
+Se puede configurar: promptIni='[' y promptFin = '$ '. Los espacios son también parte del texto que se debe configurar.
 
 Por defecto se espera que el prompt encontrado sea exactamnente igual a la última línea del texto que llega por el terminal. Pero existen opciones adicionales. El tipo de coincidencia se puede configurar en la variable 'promptMatch'. Puede tener los siguientes valores:
 
@@ -420,22 +398,3 @@ Se puede usar también una rutina personalizada para la detección del prompt. E
 function(lin: string): boolean;
 
 El evento recibe la línea a explorar y debe devolver TRUE, si es que se determina que la línea actual contiene al prompt. Al activar este evento, se desactiva la detección interna de la unidad.
-
-## Using a Status bar
-
-Optionally, when creating the process, you can pass the reference to a panel of a Statusbar, so animated icons are displayed to indicates the states of the connection. In this case, the OnDrawPanel () event of the Statusbar must be handled.
-
-The next code use the Statusbar StatusBar1 to show animated icons representing the states of the connection.
-
-```
-  p := TConsoleProc.Create(StatusBar1.Panels[1]);  //Crea conexión
-  StatusBar1.OnDrawPanel:=@SBDrawPanel;
-  
-  ...
-  
-  procedure Form1.SBDrawPanel(StatusBar:TStatusBar; Panel:TStatusPanel; const Rect:TRect);
-  begin
-   if panel.Index = 1 then p.DrawStatePanel(StatusBar.Canvas, Rect);
-  end;
-
-```
