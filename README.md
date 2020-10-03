@@ -344,113 +344,111 @@ Este método de trabajo también también puede sufrir del problema del método 
 
 Aunque el efecto de este caso extremo puede no ser muy crítico, ya que solo generará una línea adicional con el prompt en el editor de salida. Esta línea adicional no quitará la legibilidad del código pero de todas formas, es una falta de fidelidad en la salida del proceso.
   
-## Manejo del Terminal 
+## Terminal use
 
-### Envío de comandos
+### Sending commands
 
-Los comandos (o cualquier cadena en general), se envían al proceso con los método Send(), SendLn() o SendFile(). 
+The commands (or any string in general), are sent to the process with the Send(), SendLn() or SendFile() methods.
 
-SendLn() es similar a Send(), pero envía adicionalmente un salto de línea al final. El salto de línea es necesario, en la mayoría de procesos, para que se reconozca a la cadena enviada, como un comando.
+SendLn() is similar to Send(), but additionally sends a newline character(s) at the end. The newline character(s) is necessary, in most processes, so that the sent string is recognized, as a command.
 
-El método SendFile(), envía el contenido completo de un archivo al terminal.
+The SendFile() method sends the complete content of a file to the program.
 
-El salto de línea a enviar depende del valor de "LineDelimSend".
+The newline character(s) to send depends on the value of "LineDelimSend".
 
-Para enviar caracteres de control, se debe usar el método SendVT100Key(), porque los caracteres de control, deben convertirse primero en secuencias de escape, al menos para los aplicativos que reconozcan las secuencias de escape. Por ejemplo si se envía la tecla direccional derecha, con SendVT100Key(), primero se transformará en la secuencia ESC+\[C.
+To send control characters, the SendVT100Key () method must be used, because control characters must first be converted into escape sequences, at least for applications that recognize escape sequences. For example, if the right directional key is sent, with SendVT100Key (), it will first be transformed into the sequence: ESC + \[C.
 
-Para enviar simples comandos (que son secuencias de caracteres imprimibles), basta con usar SenLn().
+To send simple commands (which are printable character sequences), just use SenLn().
 
-En principio, solo debería mandarse un solo comando por SendLn() porque, enviar más de un comando podría hacer que el proceso pase repetidamente por  las fases:
+In principle, only a single command should be sent by SendLn() because, sending more than one command could make the process go through the phases repeatedly:
 
 ECO_BUSY -> ECO_READY -> ECO_BUSY ... -> ECO_READY.
 
-Haciendo que se pase de un estado de libre a ocupado de forma automática, y pudiendo complicar a alguna rutina que esté programada para enviar más comandos cuando detecte que el proceso se encuentre libre.
+Making it go from a free to busy state automatically, and being able to complicate a routine that is programmed to send more commands when it detects that the process is ready.
 
-Los datos de salida que van llegando del proceso, no se guardan completamente en la
-clase. Solo se mantienen las líneas de trabajo del terminal VT100 en el objeto "term".
-Así se ahorra memoria, porque por lo general, el texto de salida está destinado a ser almacenado en algún otro control como un editor de texto o una grilla.
-Es responsabilidad del programador, limitar el tamaño de los datos almacenados.
+The output data that comes from the process are not completely saved in the class. Only the working lines of a VT100 terminal are kept in the "term" object. This saves memory, because generally the output text is intended to be stored in some other control such as a text editor or grid.
 
-Los datos de salida que llegan por el terminal, se recuperan por sondeo del flujo de salida. Por defecto, se explora la salida en intervalos de 50 milisegundos(20 veces por segundo), y usando un "buffer" interno de 2048 bytes.
+It is the responsibility of the programmer to limit the size of the stored data.
 
-Para cambiar el periodo de sondeo de la salida del proceso, se debe cambiar el valor de la propiedad 'clock.interval' (en milisegundos). Se puede trabajar bien con periodos de 100 mseg o aún más, si la cantidad de información es baja. Pero no es recomendable bajar a menos de 50 mseg, porque se genera una carga adicional de CPU (aún cuando no llegen datos). Solo se debería bajar este periodo cuando se requiera procesar los datos de llegada, de forma inmediata.
+The process output data, arriving through the terminal, is retrieved by polling the output stream. By default, the output is scanned in intervals of 50 milliseconds (20 times per second), and using an internal 2048-byte "buffer".
 
-### Saltos de línea al enviar
+To change the polling period of the process output, you must change the value of the 'clock.interval' property (in milliseconds). You can work well with periods of 100 msec or even more, if the amount of information is low. But it is not recommended to go below 50 msec, because an additional CPU load is generated (even when no data arrives). This period should only be lowered when it is required to process the arrival data, immediately.
 
-Dentro de UnTerminal, se pueden configurar los caracteres de salto de línea que se usarán, tanto para el envío, como para la recepción.
+### Line-ending in sending
 
-Para configurar los caracteres de salto de línea, en el envío, se debe usar la propiedad "LineDelimSend", que puede tomar los siguientes valores: 
+Inside UnTerminal, you can configure the line break characters that will be used, both for sending and receiving.
 
-* LDS_CRLF   //Envía los caracteres CR y LF
-* LDS_CR     //Envía solo CR (caracter #13)
-* LDS_LF     //Envía solo LF (caracter #10) 
+To set the line-ending characters in sending, the "LineDelimSend" property must be used, which can take the following values:
 
-Configurar el salto de línea para envío, implica que se agregarán los caracteres configurados, cada vez que se usen los métodos TConsoleProc.SendLn o TConsoleProc.SendFile, independientemente del tipo de delimitador que se haya incluido en la cadena. Lso siguientes ejemplos, ilustrarán el conportamiento de SendLn, cuandos se configura "LineDelimSend".
+* LDS_CRLF   //Sends CR and LF characters
+* LDS_CR     //Send only CR (character #13)
+* LDS_LF     //Send only LF (character #10) 
 
-Si se ha definido LineDelimSend en LDS_LF, entonces:
+Setting the line-ending for sending implies that the configured characters will be added, each time the TConsoleProc.SendLn() or TConsoleProc.SendFile() methods are used, regardless of the type of delimiter that has been included in the string. The following examples will illustrate the behavior of SendLn(), when "LineDelimSend" is set.
 
-SendLn('aaa');             //Enviará realmente 'aaa'#10
-SendLn('aaa'#10);          //Enviará realmente 'aaa'#10
-SendLn('aaa'#13);          //Enviará realmente 'aaa'#10
-SendLn('aaa'#13#10);       //Enviará realmente 'aaa'#10
-SendLn('aaa'#13#10'bbb');  //Enviará realmente 'aaa'#10'bbb'#10
+If LineDelimSend has been defined in LDS_LF, then:
 
-Como se ve, cuando se configura un caracter de salto de línea, se cambian todos los saltos de línea para que se use solo el salto de línea configurado.
+SendLn('aaa');             //Will actually send 'aaa'#10
+SendLn('aaa'#10);          //Will actually send 'aaa'#10
+SendLn('aaa'#13);          //Will actually send 'aaa'#10
+SendLn('aaa'#13#10);       //Will actually send 'aaa'#10
+SendLn('aaa'#13#10'bbb');  //Will actually send 'aaa'#10'bbb'#10
 
-En general, se debe poner a "LineDelimSend" en LDS_LF, para los procesos en Linux/UNIX y se debe dejar en LDS_CRLF, para los procesos en Windows.
+As you can see, when a newline character is set, all the newlines are changed so that only the configured newline is used.
 
-La propiedad "LineDelimSend", no tiene efecto sobre el método TConsoleProc.Send(), que seguirá enviando siempre, los caracteres indicados.
+In general, "LineDelimSend" should be set to LDS_LF, for Linux / UNIX processes, and should be left at LDS_CRLF, for Windows processes.
 
-### Saltos de línea al recibir
+The "LineDelimSend" property has no effect on the TConsoleProc.Send() method, which will always send the indicated characters.
 
-Para configurar los caracteres de salto de línea, en la recepción, se debe usar la propiedad "LineDelimRecv", que puede tomar los siguientes valores: 
+### Line-ending in receiving
 
-* LDR_CRLF  //El salto de línea es CR-LF (o LF-CR)
-* LDR_CR    //El salto de línea es este caracter. Se ignora LF
-* LDR_LF    //El salto de línea es este caracter. Se ignora CR
-* LDR_CR_LF //El salto de línea es este CR o LF
+To set the line-ending characters, at the reception, you must use the "LineDelimRecv" property, which can take the following values:
+
+* LDR_CRLF  //The line break is CR-LF (or LF-CR).
+* LDR_CR    //The line break is this character. LF is ignored.
+* LDR_LF    //The line break is this character. CR is ignored.
+* LDR_CR_LF //The line break is CR or LF
    
-Cuando se configura "LineDelimRecv", se estará indicando a las rutinas de recepción, cómo es que deben interpretar los caracteres CR y LF. Si por ejemplo se configura a "LineDelimRecv" en LDR_LF, entonces cada vez que se reciba el caracter LF, se interpretará como un salto de línea, ignorando al caracter CR.
+When "LineDelimRecv" is set, the reception routines are being told how they should interpret the CR and LF characters. If for example "LineDelimRecv" is configured in LDR_LF, then every time the LF character is received, it will be interpreted as a line break, ignoring the CR character.
 
-En general, se debe poner a "LineDelimRecv" en LDR_LF, para los procesos en Linux/UNIX y se debe dejar en LDR_CRLF, para los procesos en Windows.
+In general, "LineDelimRecv" should be set to LDR_LF, for Linux / UNIX processes, and it should be left at LDR_CRLF, for Windows processes.
 
-El evento TTermVT100.OnLineCompleted(), se genera cuando se detecta la llegada del caracter (o caracteres) de salto de línea. Además se pasa como parámetro, a la línea actual. 
+The TTermVT100.OnLineCompleted() event is generated when the arrival of the line-ending character (or characters) is detected. This event will contain the current line as parameter.
 
+## Prompt Detection
 
-## Detección del Prompt
+Prompt detection is done by exploring the text strings that are arriving from the process, to see if they match the detection parameters. This method may not be very reliable if the Prompt of the process changes too much.
 
-La detección del Prompt se hace explorando las cadenas de texto que van llegando del proceso, para ver si coinciden con los parámetros de la detección. Esta forma puede no ser muy confiable si el Prompt del proceso es muy cambiante.
+The output data generated by the process is received in blocks that can have a variable size, but that do not exceed the constant UBLOCK_SIZE. The search for the prompt is always done on the last line of each block of data that is received from the process (in the ReadData() method). If the process must send too much information, it usually arrives in several blocks, but the prompt (at least the final part) is always expected to arrive in the last block received. Not every line received is scanned, to reduce the processing load.
 
-Los datos de salida que van generando el proceso, se reciben en bloques que pueden tener tamaño variable, pero que no exceden a UBLOCK_SIZE. La búsqueda del prompt se hace siempre en la última línea de cada bloque de datos que se recibe del proceso (En el método ReadData()). Si el proceso debe enviar demasiada información, esta suele llegar en varios bloques, pero siempre se espera que el prompt (al menos la parte final), llegue en el último bloque recibido. No se explora cada línea recibida, para disminuir la carga de procesamiento.
+To configure the detection of the Prompt, set the 'detecPrompt' property to TRUE and set values ​​for 'promptIni' and 'promptFin'. These strings determine the beginning and ending part of the prompt.
 
-Para configurar la detección del Prompt se debe poner la propiedad 'detecPrompt' en TRUE y fijar valores para 'promptIni' y 'promptFin'. Estas cadenas determinan la parte inicial y final del prompt.
+If the prompt does not change, you can put its value directly in 'promptIni' and leave 'promptFin' empty. But if the prompt is variable, you can put the initial part in 'promptIni' and the final part in 'promptFin', but choosing values ​​that do not lead to confusion with data lines.
 
-Si el prompt es fijo y no cambia, se puede poner su valor directamente en 'promptIni' y se deja 'promptFin' vacío. Pero si el prompt es variable, se puede poner la parte inicial en 'promptIni' y la parte final en 'promptFin', pero eligiendo valores que no den lugar a confusión con líneas de datos.
-
-Así, por ejemplo para detectar un prompt de tipo:
+So, for example to detect a prompt of type:
 
 ```[usuario@localhost ~]$ ```
 
-Se puede configurar: promptIni='\[' y promptFin = '$ '. Los espacios son también parte del texto que se debe configurar.
+It can be set: promptIni = '\[' and promptFin = '$ '. Spaces are also part of the text that must be configured.
 
-Por defecto se espera que el prompt encontrado sea exactamnente igual a la última línea del texto que llega por el terminal. Pero existen opciones adicionales. El tipo de coincidencia se puede configurar en la variable 'promptMatch'. Puede tener los siguientes valores:
+By default, the prompt found is expected to be exactly the same as the last line of the text that arrives from the terminal. But there are additional options. The type of match can be configured in the variable 'promptMatch'. It can have the following values:
 
-*   prmExactly,   //prompt es la línea entera
-*   prmAtBegin,   //prompt aparece al inicio de la línea
-*   prmAtEnd,     //prompt aparece al final de la línea
-*   prmAtAnyPos   //prompt aparece en cualquier parte de la línea
+*   prmExactly,   //prompt is the whole line.
+*   prmAtBegin,   //prompt appears at the beginning of the line
+*   prmAtEnd,     //prompt appears at the end of the line
+*   prmAtAnyPos   //prompt appears anywhere on the line
 
-Por defecto, 'promptMatch' está en 'prmExactly'.
+By default, 'promptMatch' is set to 'prmExactly'.
 
-Tambíen se puede usar la función de configuración automática del prompt, que se ejecuta llamando al método AutoConfigPrompt. Pero este método debe ser llamado cuando se tenga el Pprompt visible en la última línea del terminal.
+You can also use the automatic prompt configuration function, which is executed by calling the AutoConfigPrompt() method. But this method must be called when the Pprompt is visible in the last line of the terminal.
 
-'AutoConfigPrompt' lee la última línea asumiendo que es el prompt y fija valores automáticamente para 'promptIni' y 'promptFin'.
+'AutoConfigPrompt' reads the last line assuming it is the prompt and automatically sets values for 'promptIni' and 'promptFin'.
 
-Se puede usar también una rutina personalizada para la detección del prompt. Esta se debe enganchar al evento OnChkForPrompt() que tiene la forma:
+You can also use a custom routine for prompt detection. This must be hooked to the OnChkForPrompt() event that has the form:
 
-function(lin: string): boolean;
+function (lin: string): boolean;
 
-El evento recibe la línea a explorar y debe devolver TRUE, si es que se determina que la línea actual contiene al prompt. Al activar este evento, se desactiva la detección interna de la unidad.
+The event receives the line to be scanned and must return TRUE, if it is determined that the current line contains the prompt. Activating this event disables the internal detection of the unit.
 
 ## Using a Status bar
 
