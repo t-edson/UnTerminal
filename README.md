@@ -3,23 +3,25 @@ UnTerminal 1.0
 
 By Tito Hinostroza
 
-Lazarus unit for control console processes, with prompt detection. Tested in Linux and DOS consoles
+Lazarus unit for control external programs or console processes, with prompt detection. Tested in Linux and DOS consoles.
 
 This unit allows to launch a process and interact with it trough the standard input and output.
 
 Features:
 
-* Work as a wrapper for TProcess.
+* Works as a wrapper for TProcess.
 * Includes detection of prompt.
-* Assign states for a process, like "Ready" or "Busy".
-* It's event driven.
+* Assigns states for a process, like "Ready" or "Busy".
+* Is event driven.
+* Recognize some VT100 sequences.
 
-Process to control with this unit should complaint:
+Programs to be controled with this unit should comply:
 
 1. That can be launched as a console command.
 2. That input and output are text format.
 
 Optionally they can:
+
 3. Have a prompt.
 4. Be controled by commands (Si se quiere enviar información al proceso).
 
@@ -34,7 +36,7 @@ In the current version, the error output stream cannot be read independently. On
 
 ## Hello world
 
-The simplest code to launch a process and capture the output can be:
+The simplest code to launch a command/process/program and capture the output can be:
 
 ```
 var outputText: string;
@@ -45,18 +47,17 @@ var outputText: string;
 
 This code executes the command 'bash -c "ls" ' and captures the output (and the errors) in the variable "outputText".
 
-The -1 parameters is the numbers of seconds to wait the process finish. The value -1 indicates, the instruction will wait until the command finishes.
+This code works for linux but can be used in windows too, usign DOS commands.
 
-If the process or command doesn't exist, the instruction RunInLoop will raise an exception in runtime.
 
 ## Executing commands
 
 To execute a command, first you need to create an instance of the class TConsoleProc:
 
 ```
-  p := TConsoleProc.Create(nil);  //Crea conexión
+  p := TConsoleProc.Create(nil);  //Create conecction
   ...
-  p.Free;
+
 ```
 
 Then you need to execute the command, choosing the appropriate way.
@@ -68,7 +69,35 @@ B) Running in a infinite loop (or until the program finishes).
 
 Both methods can use events to work.
 
-The option A, is implemented using the method RunInLoop(). There are several versions of this method. The idea of this way is to send a command and get the output/error text in a variable, generally without interacting with the process.
+The option A, is implemented using the method RunInLoop(). There are several versions of this method:
+ 
+```
+  function RunInLoop(progPath, progParam: string; TimeoutSegs: integer = -1): boolean;
+  function RunInLoop(progPath, progParam: string; TimeoutSegs: integer;
+    var progOut: TStringList): boolean;
+  function RunInLoop(progPath, progParam: string; TimeoutSegs: integer; out
+    outText: String): boolean;
+```
+
+The idea of this way is to send a command and get the output/error text in a variable, generally without interacting with the process.
+
+The parameter "progPath" is the name of the program or commnand to be executed. Consider that popular commands of DOS or Linux, are not programs, so we cannot launch "dir" or "ls" in "progPath". Instead we need to call the corresponding command processor and pass the commands, like "cmd /c dir" or 'bash -c "ls"'.
+
+The parameter "progParam" is a string containing the paremeters of the program or commnand to be executed. They can include in "progaPath" too, but it's advisable to include them separately.
+
+As an example the next commands are similar:
+
+```
+  proc.RunInLoop('cmd','/c dir', -1, outText);
+```
+
+```
+  proc.RunInLoop('cmd /c dir','', -1, outText);
+```
+
+If the program or command doesn't exist, the instruction RunInLoop() will raise an exception in runtime.
+
+The parameters "TimeoutSegs" is the numbers of seconds to wait the command finishes, before continue executing the next instructions. The value -1 indicates, the instruction will wait until the command finishes.
 
 The option B is described in the next sections of this document.
 

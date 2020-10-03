@@ -1,7 +1,7 @@
 {
 UnTerminal 1.0
 ===============
-Por Tito Hinostroza 02/10/2019
+Por Tito Hinostroza 02/10/2020
 
 Description
 ===========
@@ -106,8 +106,8 @@ protected
   function ContainsPromptL(const linAct: string; var pos1, pos2: integer
     ): boolean;
   function EsPrompt(const cad: string): boolean;
-  function GetAnchoTerminal: integer;
-  procedure SetAnchoTerminal(AValue: integer);
+  function GetTerminalWidth: integer;
+  procedure SetTerminalWidth(AValue: integer);
   function DoReadData: boolean;
   //respuesta a eventos de term
   procedure termAddLine;
@@ -157,7 +157,7 @@ public
   procedure Open(progPath, progParam: string); //Inicia conexión
   function Close: boolean;    //Termina la conexión
   procedure ClearTerminal;
-  property TerminalWidth: integer read GetAnchoTerminal write SetAnchoTerminal;
+  property TerminalWidth: integer read GetTerminalWidth write SetTerminalWidth;
   procedure Send(const txt: string);
   procedure SendLn(txt: string);  //Envía datos por el "stdin"
   procedure SendFile(name: string);  //Envía el contenido de un archivo
@@ -265,12 +265,12 @@ function TConsoleProc.LastLine: string; inline;
 begin
   Result := term.buf[term.CurY];
 end;
-function TConsoleProc.GetAnchoTerminal: integer;
+function TConsoleProc.GetTerminalWidth: integer;
 //Devuelve el ancho del terminal
 begin
   Result := term.width;
 end;
-procedure TConsoleProc.SetAnchoTerminal(AValue: integer);
+procedure TConsoleProc.SetTerminalWidth(AValue: integer);
 //Fija el ancho del terminal
 begin
   if term.width=AValue then Exit;
@@ -648,7 +648,7 @@ begin
 end;
 function TConsoleProc.Loop(TimeoutSegs: integer = -1; ldelay:integer = 50): boolean;
 {Ejecuta el proceso en un lazo, hasta que la aplicación termine o hasta que se
-cumpla el número de segundos indciados en "TimeoutSegs". Si se detiene por desborde
+cumpla el número de segundos indicados en "TimeoutSegs". Si se detiene por desborde
 devuelve TRUE, y un mensaje de error en "msjError".
 "ldelay" es la duración en milisegundos que se asigna al bucle.
 Se usa cuando no se puede usar el temporizador, como en las aplicaciones de consola.}
