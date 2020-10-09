@@ -262,7 +262,7 @@ El código de trabajo, se parecerá a este:
 ```
 var LinPartial: boolean = false;
 
-  proc.OnLineCompleted:=@sqlConLineCompleted;
+  proc.OnLineCompleted:=@procLineCompleted;
   proc.OnReadData:=@procReadData;
 ...
   
@@ -356,7 +356,7 @@ The SendFile() method sends the complete content of a file to the program.
 
 The newline character(s) to send depends on the value of "LineDelimSend".
 
-To send control characters, the SendVT100Key () method must be used, because control characters must first be converted into escape sequences, at least for applications that recognize escape sequences. For example, if the right directional key is sent, with SendVT100Key (), it will first be transformed into the sequence: ESC + \[C.
+To send control characters, the SendVT100Key() method must be used, because control characters must first be converted into escape sequences, at least for applications that recognize escape sequences. For example, if the right directional key is sent, with SendVT100Key(), it will first be transformed into the sequence: ESC + \[C.
 
 To send simple commands (which are printable character sequences), just use SenLn().
 
