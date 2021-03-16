@@ -33,10 +33,7 @@ var
   proc: TConsoleProc;
 begin
   proc:= TConsoleProc.Create(nil);
-  //proc.RunInLoop(txtProcess.Text,'', -1, outText);
-
-  proc.RunInLoop('cmd /c dir | more','', -1, outText);
-
+  proc.RunInLoop(txtProcess.Text,'', -1, outText);
 
   Memo1.Text := outText;
   proc.Destroy;
