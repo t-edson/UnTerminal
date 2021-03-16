@@ -139,112 +139,59 @@ To operate the display, use a simple VT100 terminal from the TermVT unit. Howeve
 
 The process to be launched starts with the Open() method and ends with the Close() method.
 
-## Configurando un Editor para mostrar la salida
+## Setting an Editor to show the output
 
-El objetivo del uso de UnTerminal es poder mostrar la salida de forma cómoda para el usuario.
+The objective of using UnTerminal is to be able to display the output in a comfortable way for the user. 
 
-"UnTerminal", ha sido diseñado para manejar procesos lentos y con salida masiva de datos. Por ello la salida de datos se maneja enteramente por eventos. Además se supone que se requiere guardar un registro en pantalla, de la información que se va campturando. Por ello los eventos están orientado a manejar un objeto "TStrings", que permite ir agregando líneas nuevas e ir guardando las líneas anteriores (registro de salida).
+"UnTerminal", has beed designed to handle slow processes with massive data output. Therefore the data output is handled entirely by events. In addition, it is assumed that it is required to keep a record on the screen information while appearing. For this reason, the events are oriented to handle a "TStrings" object, which allows adding new lines and saving the previous lines (output register).
 
-Existen diversos grupos de eventos para manejar la salida de datos. Se definen 4 métodos para el control de la salida de datos:
+There are several groups of events to handle the data output. 
 
-1. Salida como terminal VT100.
-2. Salida línea por línea.
-3. Salida línea por línea con línea parcial.
-4. Salida línea por línea con línea parcial en prompt.
+Four methods are defined to control the data output::
 
-Cada uno de estos métodos tiene sus ventajas y desventajas. Y se debe usar el que se adecue mejor a las necesidades de la aplicación. Así para implementar un cliente de Telnet, se debería usar el método 1 (el más completo), pero para otros procesos bastará usar métodos más simples.
+1. Output line by line.
+2. Output line by line with partial line.
+3. Output line by line with partial line in prompt.
+4. Output as a VT100 terminal.
 
-Podría implementarse un método adicional que consiste en interceptar directamente los eventos del terminal (propiedad term: TTermVT100) de TConsoleProc, para mostrar la información en pantalla. Sin embargo este método de trabajo, es de nivel más bajo, pero puede servir para capturar el contenido completo del terminal VT100, cada vez que se produzca un cambio (lo cual no sería muy eficiente, desde luego). 
+Each of these methods has its advantages and disadvantages. And you should use the one that best suits the needs of the application. Thus, to implement a Telnet client, method 4 (the most complete) should be used, but for other processes it will suffice to use simpler methods.
 
-Implementar la salida de datos, no afecta en la detección del prompt. Las rutinas de detección trabajan directamente sobre los bloques de datos que van llegando del proceso, sin necesidad de que estos datos se muestren.
+An additional method could be implemented which consists of directly intercepting the terminal events (property term: TTermVT100) of TConsoleProc, to display the information on the screen. However, this working method is of a lower level, but it can be used to capture the complete content of the VT100 terminal, every time there is a change (which would not be very efficient, of course).
 
-### Salida como Terminal VT100
+Implementing data output does not affect prompt detection. The detection routines work directly on the data blocks that are arriving from the process, without the need for this data to be displayed.
 
-Este es el método más completo de manejo de salida del terminal. Permite reconocer las secuencias de escape que controlan el cursor, o manipulan el texto del terminal. 
+### Output line by line
 
-Se puede decir que este es el método oficial para manejo de cualquier proceso, inclusive si genera secuencias de escape ANSI.
+With respect to the other methods, this method is the simplest, and although it has certain limitations, it may be sufficient for some cases, like when our process will not handle ANSI sequences, but will simply send plain text without delete commands or cursor handling.
 
-Para configurar un editor en esta forma, se deben usar los eventos: OnInitScreen(), OnRefreshLine(), OnRefreshLines() y OnAddLine().
-
-En el siguiente código, se usa un editor SynEdit, como salida para un proceso cualquiera. 
-
-```
-  proc.OnInitScreen:=@procInitScreen;
-  proc.OnRefreshLine:=@procRefreshLine;
-  proc.OnRefreshLines:=@procRefreshLines;
-  proc.OnAddLine:=@procAddLine;
-...
-
-procedure TfrmPrincipal.procInitScreen(const grilla: TtsGrid; fIni, fFin: integer);
-begin
-  for i:=fIni to fFin do SynEdit1.Lines.Add(grilla[i]);
-end;
-
-procedure TfrmPrincipal.procRefreshLine(const grilla: TtsGrid; fIni, HeightScr: integer);
-begin
-  yvt := SynEdit1.Lines.Count-HeightScr-1;
-  SynEdit1.Lines[yvt+fIni] := grilla[fIni];
-end;
-
-procedure TfrmPrincipal.procRefreshLines(const grilla: TtsGrid; fIni, fFin, HeightScr: integer);
-begin
-  yvt := SynEdit1.Lines.Count-HeightScr-1;  //calcula fila equivalente a inicio de VT100
-  for f:=fIni to fFin do SynEdit1.Lines[yvt+ f] := grilla[f];
-end;
-
-procedure TfrmPrincipal.procAddLine;
-begin
-  SynEdit1.Lines.Add('');
-end;
-```
-
-El evento OnInitScreen(), es llamado solo una vez al inicio para dimensionar el StringList, de modo que pueda contener a todas las líneas del terminal VT100. Es necesario que el editor de salida tenga al menos la cantidad de líneas que tiene el terminal VT100 (25 por defecto), de otra forma se geenrará un error en tiempo de ejecución. Esta condición es compresible, si tenemos en cuenta que se trata de "encajar" una pantalla virtual de un termninal (que puede ser de 80 * 25 líneas) en un contenedor TString.
-
-Para posicionar el cursor virtual del terminal en alguna línea del TString, se debe hace primero el cálculo[1]:
-
-  yvt := SynEdit1.Lines.Count-HeightScr-1;
-
-donde 'HeightScr' es la altura actual del terminal VT100, que es porporcionado por loe eventos de  TConsoleProc.
-
-[1] Desde luego si no se quisiera guardar el registro de las líneas anteriores, no sería necesario complicarnos con los cálculos y solamente necesitaríamos tener un TString con la misma cantidad de líneas del VT100, y evitaríamos calcular la posición vertical porque sería la misma en el terminal y en el TString.
-
-Para limpiar el contenido del terminal, se debe llamar al método ClearTerminal(), que además, reinicia la posición del cursor, poniéndolo en (1,1).
-
-Llamar a ClearTerminal(), no tendrá efecto, sobre el estado de la conexión o del proceso en curso, sino solamente en el contenido del terminal.
-
-### Salida Línea por Línea
-
-El método descrito en la sección anterior (usando los eventos OnInitScreen(), OnRefreshLine(), OnRefreshLines() y OnAddLine()), es por así decirlo, la manera formal de controlar la salida. Este método considera que el proceso puede manejar secuencias ANSI de escape para el control de la pantalla del terminal virtual. 
-
-Sin embargo, este método puede resultar complicado al momento de manejar la posición del cursor o cuando se quiere conmutar desde un editor de salida a otro.
-
-Si nuestro proceso a controlar, no manejará secuencias ANSI, sino que simplemente enviará texto plano sin comandos de borrado o manejo de cursor, entonces podemos usar formas alternativas más simples de mostrar la información en pantalla.
-
-El método más simple sería usar solamente el evento OnLineCompleted():
+To do a line-by-line capture, we need to use a single event:
 
 OnLineCompleted:TEvLinCompleted;
 
-Que se genera cada vez que se detecta un salto de línea en la llegada de datos. Así podríamos usar este método para ir agregando líneas a nuestro editor de salida, sin preocuparnos en iniciar la pantalla, o de la información anterior que pueda contener.
+That is generated every time a line break is detected in the arrival of data. So we could use this method to add lines to our output editor, without worrying about starting the screen, or about the previous information it may contain.
 
-Nuestro código sería algo como esto:
+Our code would be something like this:
 
 ```
+  proc := TConsoleProc.Create(nil);
   proc.OnLineCompleted:=@procOnLineCompleted;
+  proc.Open('cmd /c dir','');
+  
 ...
 
 procedure TForm1.procOnLineCompleted(const lin: string);
 begin
-  SynEdit1.Lines.Add(lin);
+  Memo.Lines.Add(lin);
 end;
 ```
 
-Esta forma minimalista funcionará bien, mostrando los datos de llegada, pero con un aparente retraso, porque para que se muestre una línea, esta debe estar completa. De modo que cuando llegue el prompt (o una línea incompleta), esta línea no se mostrará en el editor (a pesar de que el proceso podría pasar al estado ECO_READY). 
+This minimalistic form will work fine, displaying the arrival data, but with an apparent delay, because for a line to be displayed, it must be complete. So when the prompt (or an incomplete line) arrives, this line won't show up in the editor (even though the process might go into ECO_READY state).
 
-El hecho de que no se muestre la última línea, no implica que no se mostrará más. Esta se hará visible al recibir el salto de línea correspondiente, a menos que se  cierre la conexión antes.
+The fact that the last line is not displayed does not imply that it will no longer be displayed. This will be visible when the corresponding line break is received, unless the connection is closed before.
 
-Este método de captura de salida es útil cuando se requiere capturar la salida masiva de datos sin que sea muy importante la correcta visualización del prompt o líneas intermedias.
+This method of capturing output is useful when it is required to capture massive data output without the correct display of the prompt or intermediate lines being very important.
 
-Para determinar cuando se termina de recibir los datos, se puede usar la detección del prompt, si es que el proceso lo permite.
+To determine when the data is finished receiving, prompt detection can be used, if the process allows it.
 
 ### Salida línea por línea con línea parcial
 
@@ -343,6 +290,62 @@ La variable 'LinPrompt', nos sirve para detectar cuando se ha recibido el prompt
 Este método de trabajo también también puede sufrir del problema del método anterior si, es que se recibe una línea larga (donde se detecte el prompt) que viene en más de un bloque. La solución a aplicar es la misma.
 
 Aunque el efecto de este caso extremo puede no ser muy crítico, ya que solo generará una línea adicional con el prompt en el editor de salida. Esta línea adicional no quitará la legibilidad del código pero de todas formas, es una falta de fidelidad en la salida del proceso.
+
+### Salida como Terminal VT100
+
+Este es el método más completo de manejo de salida del terminal. Permite reconocer las secuencias de escape que controlan el cursor, o manipulan el texto del terminal. 
+
+Se puede decir que este es el método oficial para manejo de cualquier proceso, inclusive si genera secuencias de escape ANSI. Sin embargo, manejar procesos mediante esta forma de trabajo puede resultar complicado al momento de manejar la posición del cursor o cuando se quiere conmutar desde un editor de salida a otro.
+
+Para configurar un editor en esta forma, se deben usar los eventos: OnInitScreen(), OnRefreshLine(), OnRefreshLines() y OnAddLine().
+
+En el siguiente código, se usa un editor SynEdit, como salida para un proceso cualquiera. 
+
+```
+  proc.OnInitScreen:=@procInitScreen;
+  proc.OnRefreshLine:=@procRefreshLine;
+  proc.OnRefreshLines:=@procRefreshLines;
+  proc.OnAddLine:=@procAddLine;
+...
+
+procedure TfrmPrincipal.procInitScreen(const grilla: TtsGrid; fIni, fFin: integer);
+begin
+  for i:=fIni to fFin do SynEdit1.Lines.Add(grilla[i]);
+end;
+
+procedure TfrmPrincipal.procRefreshLine(const grilla: TtsGrid; fIni, HeightScr: integer);
+begin
+  yvt := SynEdit1.Lines.Count-HeightScr-1;
+  SynEdit1.Lines[yvt+fIni] := grilla[fIni];
+end;
+
+procedure TfrmPrincipal.procRefreshLines(const grilla: TtsGrid; fIni, fFin, HeightScr: integer);
+begin
+  yvt := SynEdit1.Lines.Count-HeightScr-1;  //calcula fila equivalente a inicio de VT100
+  for f:=fIni to fFin do SynEdit1.Lines[yvt+ f] := grilla[f];
+end;
+
+procedure TfrmPrincipal.procAddLine;
+begin
+  SynEdit1.Lines.Add('');
+end;
+```
+
+El evento OnInitScreen(), es llamado solo una vez al inicio para dimensionar el StringList, de modo que pueda contener a todas las líneas del terminal VT100. Es necesario que el editor de salida tenga al menos la cantidad de líneas que tiene el terminal VT100 (25 por defecto), de otra forma se geenrará un error en tiempo de ejecución. Esta condición es compresible, si tenemos en cuenta que se trata de "encajar" una pantalla virtual de un termninal (que puede ser de 80 * 25 líneas) en un contenedor TString.
+
+Para posicionar el cursor virtual del terminal en alguna línea del TString, se debe hace primero el cálculo[1]:
+
+  yvt := SynEdit1.Lines.Count-HeightScr-1;
+
+donde 'HeightScr' es la altura actual del terminal VT100, que es porporcionado por loe eventos de  TConsoleProc.
+
+[1] Desde luego si no se quisiera guardar el registro de las líneas anteriores, no sería necesario complicarnos con los cálculos y solamente necesitaríamos tener un TString con la misma cantidad de líneas del VT100, y evitaríamos calcular la posición vertical porque sería la misma en el terminal y en el TString.
+
+Para limpiar el contenido del terminal, se debe llamar al método ClearTerminal(), que además, reinicia la posición del cursor, poniéndolo en (1,1).
+
+Llamar a ClearTerminal(), no tendrá efecto, sobre el estado de la conexión o del proceso en curso, sino solamente en el contenido del terminal.
+
+
   
 ## Terminal use
 
