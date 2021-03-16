@@ -193,18 +193,18 @@ This method of capturing output is useful when it is required to capture massive
 
 To determine when the data is finished receiving, prompt detection can be used, if the process allows it.
 
-### Salida línea por línea con línea parcial
+### Output line by line with partial line
 
-El método de línea por línea es simple y seguro. Pero no muestra la última línea. Para que se muestre la última línea completa, es necesario que se reciba el salto de línea correspondiente. Así podemos decir que en este modo de trabajo, no se mostrará nunca la última línea recibida (a menos claro, que el último caracter recibido sea el salto de línea y consideremos que la última línea es la anterior al salto).
+The line-by-line method is simple and secure. But it doesn't always update the last line. For the last complete line to be displayed, the corresponding line break must be received. Thus we can say that in this working mode, the last line received will never be shown (unless of course, that the last character received is the line break and we consider that the last line is the one before the jump).
 
-Para salvar este inconveniente, se puede usar la conbinación de eventos:
+To overcome this inconvenience, you can use the combination of events:
 
   OnLineCompleted: TEvLinCompleted; 
   OnReadData     : TEvReadData;   
  	
-El evento OnReadData(), se genera cuando se termina de leer un bloque de datos y por lo general, se termina con una línea final sin salto (puede ser el prompt). Entonces, lo que deberíamos hacer es completar reemplazar esta línea, si es que luego recibimos el evento OnLineCompleted().
+The OnReadData() event is generated when a block of data is finished reading and usually ends with a final line without a jump (it can be the prompt). So what we should do is complete replace this line, if we then receive the OnLineCompleted () event.
 
-El código de trabajo, se parecerá a este:
+The working code will look like this:
 
 ```
 var LinPartial: boolean = false;
@@ -216,30 +216,30 @@ var LinPartial: boolean = false;
 procedure TForm1.procLineCompleted(const lin: string);
 begin
   if LinPartial then begin
-    //Estamos en la línea del prompt
-    Memo1.Lines[Memo1.Lines.Count-1] := lin;  //reemplaza última línea
+    //We are in the prompt line
+    Memo1.Lines[Memo1.Lines.Count-1] := lin;  //Replace last line
     LinPartial := false;
-  end else begin  //caso común
+  end else begin  //Common case
     Memo1.Lines.Add(lin);
   end;
 end;
 
 procedure TForm1.procReadData(nDat: integer; const lastLin: string);
 begin
-  LinPartial := true;   //marca bandera
-  Memo1.Lines.Add(lastLin);   //agrega la línea que contiene al prompt
+  LinPartial := true;   	//Set flag
+  Memo1.Lines.Add(lastLin); //Add line containing the prompt
 end;
 ```
 
-La variable 'LinPartial' nos sirve para saber cuando se ha recibido una línea parcial.
+The variable 'LinPartial' helps us to know when a partial line has been received.
 
-Este método de trabajo funcionará bastante bien y es simple, pero podría darse el caso (poco común), en el que se reciban dos veces seguidas el evento OnReadData(), haciendo que se genere una línea adicional en el editor. Este caso se podría dar cuando, se genera una línea muy larga que llegue en más de un bloque, o en conexiones muy lentas.
+This working method will work quite well and is simple, but it could be the case (rare) where the OnReadData() event is received twice in a row, causing an additional line to be generated in the editor. This case could occur when a very long line is generated that arrives in more than one block, or in very slow connections.
 
-Para evitar este efecto, se podría incluir una rutina de protección adicional que verificara que el evento OnReadData(), se está produciendo dos veces seguidas y de ser así, evitar agregar una línea más.
+To avoid this effect, an additional protection routine could be included to verify that the OnReadData() event is occurring twice in a row and, if so, avoid adding one more line.
 
-El uso de los eventos OnLineCompleted()-OnReadData() es una forma sencilla de recbir los datos "linea por línea", pero no debemos olvidar que solo debe aplicarse a procesos con salida simple de texto sin saltos de línea o borrado de texto. La mayoría de procesos caen en esta categoría (como clientes de FTP o hasta el mismo shell de DOS), pero procesos como un cliente de Telnet o SSH, usan secuencias de escape que pueden requerir posicionar el cursor para sobreescribir bloques. 
+The use of OnLineCompleted()-OnReadData() events is a simple way to receive data "line by line", but we must not forget that it should only be applied to processes with simple text output without cursor control or text deletion. Most processes fall into this category (like FTP clients or even the DOS shell itself), but processes like a Telnet or SSH client use escape sequences that may require positioning the cursor to overwrite blocks.
 
-En estos casos no se debería implementar este método de captura de salida; pero inclusive si se implementara aquí, podríamos tarbajar bien, mientras no se generen saltos del cursor o borrado de texto. Las secuencias de escape que cambian atributos del texto no afectan en la salida del texto, porque son procesadas (o mejor dicho ignoradas) por TConsoleProc, de modo que los eventos de salida de texto no contienen secuencias ANSI de ningún tipo, en sus parámetros.
+In these cases you should not implement this output capture method; but even if it were implemented here, we could work fine, as long as cursor jumps or text deletion is not generated. Escape sequences that change text attributes do not affect the output of the text, because they are processed (or better said ignored) by TConsoleProc, so that the text output events do not contain ANSI sequences of any kind, in their parameters.
 
 ### Salida línea por línea con línea parcial en Prompt
 
