@@ -84,7 +84,7 @@ The idea of this way is to send a command and get the output/error text in a var
 
 The parameter "progPath" is the name of the program or commnand to be executed. Consider that popular commands of DOS or Linux, are not programs, so we cannot launch "dir" or "ls" in "progPath". Instead we need to call the corresponding command processor and pass the commands, like "cmd /c dir" or 'bash -c "ls"'.
 
-The parameter "progParam" is a string containing the paremeters of the program or commnand to be executed. They can be included in "progaPath" too, but it's advisable to include them separately.
+The parameter "progParam" is a string containing the paremeters of the program or commnand to be executed. They can be included in "progPath" too, but it's advisable to include them separately.
 
 As an example the next commands are similar:
 
