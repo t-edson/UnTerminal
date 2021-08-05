@@ -23,7 +23,7 @@ Programs to be controled with this unit should comply:
 Optionally they can:
 
 3. Have a prompt.
-4. Be controled by commands (Si se quiere enviar información al proceso).
+4. Be controled by commands (If we want to send data to the process).
 
 The processes that can be controlled with this unit are diverse, such as telnet clients, ftp, or the operating system shell itself, as shown in the included example.
 
@@ -64,9 +64,9 @@ Then you need to execute the command, choosing the appropriate way.
 
 There are several ways to execute commands using UnTerminal. They can be clasified in two types:
 
-A) Running in a finite loop (or until the process finishes).
+  A) Running in a finite loop (or until the process finishes).
 
-B) Running in a infinite loop (or until the program finishes).
+  B) Running in a infinite loop (or until the program finishes).
 
 Both methods can use events to work.
 
