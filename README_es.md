@@ -209,7 +209,7 @@ El código de trabajo, se parecerá a este:
 ```
 var LinPartial: boolean = false;
 
-  proc.OnLineCompleted:=@sqlConLineCompleted;
+  proc.OnLineCompleted:=@procLineCompleted;
   proc.OnReadData:=@procReadData;
 ...
   

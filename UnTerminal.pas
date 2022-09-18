@@ -528,10 +528,10 @@ begin
   if p = NIL then exit;
   if not p.Running then exit;
   p.PipeBufferSize:=20000;
-  p.Input.Size:=20000;
+//  p.Input.Size:=20000;
   p.Input.Write(txt[1], length(txt));  //pasa el origen de los datos
 
-  //para que se genere un cambio de State aunque el comando sea muy corto
+  //Para que se genere un cambio de State aunque el comando sea muy corto
   if State = ECO_READY then ChangeState(ECO_BUSY);
 end;
 procedure TConsoleProc.SendLn(txt: string);
