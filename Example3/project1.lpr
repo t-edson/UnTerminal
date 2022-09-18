@@ -36,7 +36,12 @@ var
 begin
   writeln('Executing process');
   p := TProc.Create;
+ {$ifdef linux}
+ p.proc.Open('bash','');
+ {$endif}
+ {$ifdef WINDOWS}
   p.proc.Open('cmd','');
+ {$endif}
   p.proc.Loop(3);  //Execute process until finished or pass 3 seconds
   p.proc.Close;
   writeln('Finished');
