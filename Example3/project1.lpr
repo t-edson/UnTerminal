@@ -9,6 +9,7 @@ type
     proc: TConsoleProc;
     procedure procLineCompleted(const lin: string);
     procedure procLineInit(const grilla: TtsGrid; fIni, fFin: integer);
+    procedure procReadData(nDat: integer; const lastLin: string);
     constructor Create;
     destructor Destroy; override;
   end;
@@ -18,6 +19,7 @@ begin
   proc.LineDelimSend := LDS_CRLF;
   proc.OnInitScreen:= @procLineInit;
   proc.OnLineCompleted:=@procLineCompleted;
+  proc.OnReadData:=@procReadData;
 end;
 
 destructor TProc.Destroy;
@@ -30,6 +32,11 @@ var
   i: Integer;
 begin
   for i:=fIni to fFin do write((grilla[i]));
+end;
+
+procedure TProc.procReadData(nDat: integer; const lastLin: string);
+begin
+  Write(lastLin);
 end;
 
 procedure TProc.procLineCompleted(const lin: string);
