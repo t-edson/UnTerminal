@@ -1,13 +1,14 @@
 {Sample of code for "UnTerminal", in a console program.
- This a very basic sample test. No interaction, no processing, no response.
+ This a very basic sample test.
  Just opening a CMD command.}
 
 program project1;
-uses Interfaces, UnTerminal, SysUtils;
+uses Interfaces, UnTerminal,TermVT,SysUtils;
 type
   TProc=class
     proc: TConsoleProc;
     procedure procLineCompleted(const lin: string);
+    procedure procLineInit(const grilla: TtsGrid; fIni, fFin: integer);
     constructor Create;
     destructor Destroy; override;
   end;
@@ -15,12 +16,20 @@ constructor TProc.Create;
 begin
   proc := TConsoleProc.Create(nil);
   proc.LineDelimSend := LDS_CRLF;
+  proc.OnInitScreen:= @procLineInit;
   proc.OnLineCompleted:=@procLineCompleted;
 end;
 
 destructor TProc.Destroy;
 begin
   proc.Destroy;
+end;
+
+procedure TProc.procLineInit(const grilla: TtsGrid; fIni, fFin: integer);
+var
+  i: Integer;
+begin
+  for i:=fIni to fFin do writeln((grilla[i]));
 end;
 
 procedure TProc.procLineCompleted(const lin: string);
@@ -33,8 +42,10 @@ end;
 var
   p: TProc;
   i: Integer;
+  input: string;
 begin
   writeln('Executing process');
+  writeln('Type quit to leave');
   p := TProc.Create;
  {$ifdef linux}
  p.proc.Open('bash','');
@@ -42,9 +53,14 @@ begin
  {$ifdef WINDOWS}
   p.proc.Open('cmd','');
  {$endif}
-  p.proc.Loop(3);  //Execute process until finished or pass 3 seconds
-  p.proc.Close;
+  repeat
+    Readln(input);
+    writeln('You input '+ input);
+    if input = 'quit' then
+      break;
+    p.proc.SendLn(input);
+    p.proc.Loop(1);
+  until p.proc.State = ECO_STOPPED;
   writeln('Finished');
   p.Destroy;
 end.
-
