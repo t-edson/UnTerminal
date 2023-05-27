@@ -62,5 +62,6 @@ begin
     p.proc.Loop(1);
   until p.proc.State = ECO_STOPPED;
   writeln('Finished');
+  p.proc.Close;
   p.Destroy;
 end.
