@@ -29,7 +29,7 @@ procedure TProc.procLineInit(const grilla: TtsGrid; fIni, fFin: integer);
 var
   i: Integer;
 begin
-  for i:=fIni to fFin do writeln((grilla[i]));
+  for i:=fIni to fFin do write((grilla[i]));
 end;
 
 procedure TProc.procLineCompleted(const lin: string);
